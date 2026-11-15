@@ -1,0 +1,73 @@
+name: 问题反馈 / Bug report
+description: 某个功能不对、崩溃、安装或更新失败
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认已经在 [Releases](https://github.com/lertone/PixPeel/releases/latest) 用上最新版——很多问题在新版已经修掉了。
+        安全相关问题请不要在这里公开，见 [SECURITY.md](https://github.com/lertone/PixPeel/blob/main/SECURITY.md)。
+
+  - type: input
+    id: version
+    attributes:
+      label: PixPeel 版本
+      description: 设置页底部或安装包文件名里的版本号
+      placeholder: 例如 1.0.5
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: 系统
+      options:
+        - Windows 11
+        - Windows 10
+        - Windows（其他 / 不清楚）
+        - macOS（Apple 芯片）
+        - macOS（Intel）
+        - Linux（X11）
+        - Linux（Wayland）
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: 安装方式
+      options:
+        - 安装包（Setup / dmg / deb / rpm）
+        - AppImage 免安装
+        - 从源码运行（npm start）
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 实际结果，以及你期望的结果
+      placeholder: 点「保存」后元素列表清空了，期望只删掉当前元素。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 导入 3 张图
+        2. 在拼贴墙里点第二张图的元素
+        3. …
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截图 / 录屏 / 其他线索
+      description: 能贴图最好。涉及 AI 点选请说明用的是量化版还是浮点版。
+    validations:
+      required: false

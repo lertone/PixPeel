@@ -147,11 +147,31 @@ node cdp.js test.js shot.png
 1. 改 `package.json` 的 `version`，在 `docs/CHANGELOG*.md` 写更新内容（**中英两份**）
 2. 确认 `config.js` / `package.json` / README 里的仓库地址是 `lertone/PixPeel`
 3. `git tag v1.0.x && git push origin v1.0.x` → CI 三平台打包并自动建 Release
-4. 等 CI 全绿，核对 Release 资产数量（应该是 15 个：14 个安装包 + `xiaoji-animation.html` + `SHA256SUMS.txt`）
+4. 等 CI 全绿，核对 Release 资产数量（应该是 15 个：13 个安装包（Windows 3 + macOS 4 + Linux 6）+ `xiaoji-animation.html` + `SHA256SUMS.txt`）
 5. 下载 Windows x64 安装包 → 校验 SHA256 → 静默安装 → CDP 验证
 6. **删掉旧 Release 里多余的资产**（比如改过打包配置后），并同步修 `SHA256SUMS.txt`
 
 改了 `editor/xiaoji-animation.html` 就直接覆盖提交，CI 会把它打进每个 Release。
+
+## 项目管理约定
+
+仓库已按下面这套方式组织，别另起一套：
+
+- **标签**：GitHub 默认的 `bug` / `enhancement` / `documentation` 继续用；另加 `area: engine|ui|board-svg|packaging|docs|ai` 标模块，`priority: high|normal` 标紧急度，`needs-decision` 标「必须作者拍板」。
+- **里程碑**：一个版本一个（`v1.0.6`、`v1.0.7`…）。不确定塞哪个版本的先不挂里程碑，留在 backlog。
+- **Issue 模板**：`.github/ISSUE_TEMPLATE/` 下是 bug / feature 两个表单，改字段时注意 `id` 别和已有重复。
+- **发版跟踪**：每个版本开一个「vX.Y.Z 发布跟踪」issue，把 `发布流程（速查）` 的步骤当 checklist 勾，发完关掉。别把 checklist 只留在本地。
+- **决策类不自己拍**：收费、签名证书、自动更新这类要花钱或改变隐私边界的，先开 `needs-decision` issue 写清方案与成本，等作者回。
+
+每次接手先跑一遍巡检：
+
+```bash
+gh run list --repo lertone/PixPeel --limit 5          # CI 是否绿
+gh release view --repo lertone/PixPeel --json assets  # 资产数量对不对
+gh issue list --repo lertone/PixPeel --state open      # 有没有该关没关的
+```
+
+代码/文档里出现 `ijijv` 一律视为 bug（见下面「踩过的坑」）。
 
 ## 遗留事项
 

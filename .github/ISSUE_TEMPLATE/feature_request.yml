@@ -1,0 +1,33 @@
+name: 功能建议 / Feature request
+description: 想要一个新功能，或现有流程用起来别扭
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        PixPeel 的定位是「本机离线、不联网也能用」。涉及云端服务、账号、付费的方案，会先在 issue 里讨论再决定。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你遇到的场景
+      description: 描述卡在哪一步，比直接描述功能更好判断
+      placeholder: 我一次导入 20 张图，想只保留某一类元素，现在得一张张点。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你希望它怎么工作
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 现在的替代做法
+      description: 目前你是怎么绕过这个问题的
+    validations:
+      required: false

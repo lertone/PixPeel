@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 下载最新版
+    url: https://github.com/lertone/PixPeel/releases/latest
+    about: 反馈前先确认不是旧版本已经修过的问题
+  - name: 使用说明与已知限制
+    url: https://github.com/lertone/PixPeel#readme
+    about: 快捷键、安装、Wayland 限制、和「小剪动画」的联动
+  - name: 安全问题私下报告
+    url: https://github.com/lertone/PixPeel/security/advisories/new
+    about: 不要公开贴可利用的漏洞细节
