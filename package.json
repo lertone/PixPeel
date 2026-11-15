@@ -6,13 +6,13 @@
   "main": "main.js",
   "author": "PixPeel contributors",
   "license": "MIT",
-  "homepage": "https://github.com/ijijv/PixPeel#readme",
+  "homepage": "https://github.com/lertone/PixPeel#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ijijv/PixPeel.git"
+    "url": "git+https://github.com/lertone/PixPeel.git"
   },
   "bugs": {
-    "url": "https://github.com/ijijv/PixPeel/issues"
+    "url": "https://github.com/lertone/PixPeel/issues"
   },
   "keywords": [
     "electron",
