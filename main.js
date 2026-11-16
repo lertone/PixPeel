@@ -16,6 +16,7 @@ app.setName(APP.name);
 if (process.platform === 'win32') app.setAppUserModelId(APP.appId);
 const { listLib, listSvg, resolveSafe, safeName, uniquePath } = require('./lib');
 const server = require('./server');
+const updater = require('./updater');
 
 /* Windows 的窗口图标必须用多尺寸 ICO。
  * 用 1024×1024 的 PNG 的话，Electron 转不出合适的小图标，
@@ -331,7 +332,7 @@ async function checkUpdate() {
     const j = await getJSON(`https://api.github.com/repos/${APP.repo}/releases/latest`);
     const latest = String(j.tag_name || '').replace(/^v/, '');
     if (!latest) return { ok: false, code: 'err', msg: 'no release' };
-    return { ok: true, latest, current: app.getVersion(), newer: cmpVer(latest, app.getVersion()) > 0, url: j.html_url || (APP.repoUrl + '/releases') };
+    return { ok: true, latest, current: app.getVersion(), newer: cmpVer(latest, app.getVersion()) > 0, url: j.html_url || (APP.repoUrl + '/releases'), canAuto: updater.supported() };
   } catch (e) { return { ok: false, code: 'err', msg: String(e.message || e) }; }
 }
 const safeExternal = (u) => /^https:\/\/(github\.com|api\.github\.com)\//.test(String(u)) ? shell.openExternal(u) : false;
@@ -428,6 +429,8 @@ function ipc() {
   });
   ipcMain.handle('capture:start', () => startCapture());
   ipcMain.handle('update:check', () => checkUpdate());
+  ipcMain.handle('update:download', () => updater.download());
+  ipcMain.handle('update:install', () => updater.install());
   ipcMain.handle('open:external', (e, u) => safeExternal(u));
   ipcMain.handle('open:userdata', () => shell.openPath(app.getPath('userData')));
   ipcMain.handle('doc:get', (e, name) => {
@@ -484,6 +487,7 @@ app.whenReady().then(async () => {
     if (!sv.ok) toRenderer('toast', sv.msg);
   });
   // 启动 8 秒后悄悄查一次更新（可在设置里关掉）
+  updater.init({ toRenderer, T, APP });
   if (settings.checkUpdate && APP.configured) {
     setTimeout(async () => {
       const u = await checkUpdate();

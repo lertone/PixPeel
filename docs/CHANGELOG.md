@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6
+
+- **Fixed: uneven cards in the library.** When a tall image and a square one shared a row, the tall thumbnail stretched its box and left a large blank area under the other card. Thumbnails are now a fixed 1:1 box, so every card is the same height and images are scaled to fit and centred.
+- **New: auto-update (Windows / Linux AppImage).** When the settings page finds a new version you can hit “Download & install”, watch the progress on the button, then choose “Restart now”. Your library and settings are kept. macOS (unsigned) and deb / rpm (no in-place update channel) still open the download page. Downloads only start when you click — the app never pulls installers in the background.
+- **Fixed: with batch import, “Also save the remainder as one layer (background)” only handled the current image** and silently dropped the rest of the others. Each image now gets its own background layer, named after the source file (`Background - Element 309.png`) instead of `Background_2.png`.
+- Docs: added a [Linux desktop support table](../README.en.md#linux-desktop-support) (X11 vs Wayland, feature by feature) with a Wayland workaround (desktop screenshot → import).
+
 ## 1.0.5
 
 - **Better gap repair**: only gaps of 2 px or less could be closed before. There is now a crack filler that joins a break **only where there is foreground on both sides and the gap is narrow**, so 3–4 px notches and stepped/jagged cracks get closed up (measured: 1–4 px straight gaps fully repaired, jagged cracks completely closed) without two distant elements being glued together.

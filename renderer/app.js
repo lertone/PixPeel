@@ -267,16 +267,29 @@ segApply = function (full) { const before = new Set(SEG.layers.map(l => l.id)); 
 async function buildOut() {
   const items = SEG.layers.filter(l => l.on), out = [];
   if (!items.length) { toast(t('pickFirst')); return null; }
-  /* 「剩下的部分也存成一层」只对当前这张图有意义（其它图的坐标不在同一个画布里） */
+  /* 「剩下的部分也存成一层」：每张图各算一份。
+     批量导入时几张图的坐标不在同一张画布上，只算当前这张会把其它图剩下的像素静默丢掉。 */
   if ($('#segResid') && $('#segResid').checked) {
-    const here = items.filter(l => l.tile === SEG.cur);
-    if (here.length) {
-      const { w, h, data } = SEG.src, full = new Uint8Array(w * h);
-      for (const L of here) for (let y = 0; y < L.bh; y++) for (let x = 0; x < L.bw; x++) if (L.m[y * L.bw + x]) full[(L.by + y) * w + L.bx + x] = 1;
+    const multi = SEG.tiles.length > 1, done = new Set();
+    const tileOf = (L) => (L.tile == null ? SEG.cur : L.tile);
+    for (const L of items) {
+      const ti = tileOf(L);
+      if (done.has(ti)) continue;
+      done.add(ti);
+      const tile = SEG.tiles[ti];
+      if (!tile || !tile.src) continue;
+      const { w, h, data } = tile.src, full = new Uint8Array(w * h);
+      for (const M of items) {
+        if (tileOf(M) !== ti) continue;
+        for (let y = 0; y < M.bh; y++) for (let x = 0; x < M.bw; x++) if (M.m[y * M.bw + x]) full[(M.by + y) * w + M.bx + x] = 1;
+      }
       const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
       const g = cv.getContext('2d'), id = g.createImageData(w, h);
       for (let i = 0; i < w * h; i++) { if (full[i]) continue; const j = i * 4; id.data[j] = data[j]; id.data[j + 1] = data[j + 1]; id.data[j + 2] = data[j + 2]; id.data[j + 3] = data[j + 3]; }
-      g.putImageData(id, 0, 0); out.push({ name: t('bg'), cv, x: 0, y: 0, area: 1e12 });
+      g.putImageData(id, 0, 0);
+      /* 批量时名字带上原图名，否则几张「背景」会互相覆盖成 背景.png / 背景_2.png */
+      const base = multi ? String(tile.name || '').replace(/\.[^.]+$/, '') : '';
+      out.push({ name: base ? t('bg') + ' - ' + base : t('bg'), cv, x: 0, y: 0, area: 1e12 });
     }
   }
   for (const L of items) { const t = segCut(L, 1); out.push({ name: L.name, cv: t.cv, x: t.px, y: t.py, area: L.area }); await _yield(); }
@@ -653,10 +666,17 @@ async function renderSettings() {
     const m = $('#updMsg'); m.textContent = t('checking');
     const u = await api.checkUpdate();
     if (!u.ok) { m.textContent = u.code === 'norepo' ? t('updNoRepo') : t('updFail', { e: u.msg || '' }); return; }
-    if (u.newer) { UPD = u; m.innerHTML = t('newVer', { v: '<b>' + esc(u.latest) + '</b>' }) + ' · <a href="#" id="updGo" style="color:var(--mint)">' + t('goDl') + '</a>'; $('#updGo').onclick = (e) => { e.preventDefault(); api.openExternal(u.url); }; }
+    if (u.newer) {
+      UPD = u;
+      m.innerHTML = t('newVer', { v: '<b>' + esc(u.latest) + '</b>' }) + ' · ' +
+        (u.canAuto
+          ? '<a href="#" id="updGo" style="color:var(--mint)">' + t('dlAndInstall') + '</a>'
+          : '<a href="#" id="updGo" style="color:var(--mint)">' + t('goDl') + '</a>');
+      $('#updGo').onclick = (e) => { e.preventDefault(); if (u.canAuto) startAutoUpdate(); else api.openExternal(u.url); };
+    }
     else m.textContent = t('upToDate', { v: u.current });
   };
-  if ($('#bnGo')) $('#bnGo').onclick = () => api.openExternal(UPD.url);
+  if ($('#bnGo')) $('#bnGo').onclick = () => { if (UPD && UPD.canAuto) startAutoUpdate(); else api.openExternal(UPD.url); };
   $('#sPrivDoc').onclick = () => showDoc('PRIVACY', t('sPrivDoc'));
   $('#sLog').onclick = () => showDoc('CHANGELOG', t('sLog'));
   $('#sGit').onclick = () => api.openExternal(CFG.repoUrl);
@@ -679,6 +699,22 @@ async function renderSettings() {
 }
 function refreshHint() { const f = (a) => pretty(a).replace(/ \+ /g, '+'); $('#hkTip').innerHTML = CFG ? `${esc(f(CFG.hotkey))}<br>${esc(f(CFG.hotkey2))}` : ''; }
 
+/* 自动更新：下载只能由用户点（不偷偷拉安装包），进度由主进程推 upd:progress 回来 */
+async function startAutoUpdate() {
+  const m = $('#updMsg');
+  if (m) m.textContent = t('dlStarting');
+  const r = await api.updateDownload();
+  if (!r.ok) {
+    if (r.code === 'unsupported') { if (m) m.textContent = t('autoUnsupported'); return; }
+    if (r.code === 'latest') { if (m) m.textContent = t('upToDate', { v: CFG.version }); return; }
+    if (m) m.textContent = t('updFail', { e: r.msg || '' });
+    return;
+  }
+  if (r.status === 'ready') return;
+  if (m) m.innerHTML = t('dlPct', { p: '<b>0</b>' });
+  toast(t('dlInBg'));
+}
+
 /* ───────── 启动 ───────── */
 (async function () {
   CFG = await api.getSettings(); applyAll(); renderEmpty();
@@ -688,4 +724,20 @@ function refreshHint() { const f = (a) => pretty(a).replace(/ \+ /g, '+'); $('#h
   api.onToast((m) => toast(m));
   api.onNav((v) => showView(v));
   api.onUpdate((u) => { UPD = u; });
+  /* 自动更新：进度 / 下好 / 出错。主进程负责弹「现在重启」的对话框，这里只同步文案 */
+  const updMsg = () => $('#updMsg');
+  api.onUpdProgress((p) => {
+    const m = updMsg(); if (m) m.innerHTML = t('dlPct', { p: '<b>' + p.percent + '</b>' });
+    const b = $('#bnGo'); if (b) b.textContent = t('dlPct', { p: p.percent });
+  });
+  api.onUpdReady((d) => {
+    const m = updMsg();
+    if (m) m.innerHTML = t('dlDone', { v: esc(d.version) }) + ' · <a href="#" id="updGo2" style="color:var(--mint)">' + t('restartNow') + '</a>';
+    const l = $('#updGo2'); if (l) l.onclick = (e) => { e.preventDefault(); api.updateInstall(); };
+    const b = $('#bnGo'); if (b) { b.textContent = t('restartNow'); b.onclick = () => api.updateInstall(); }
+  });
+  api.onUpdError((d) => {
+    const m = updMsg(); if (m) m.textContent = t('updFail', { e: d.msg || '' });
+    const b = $('#bnGo'); if (b) b.textContent = t('goDl');
+  });
 })();

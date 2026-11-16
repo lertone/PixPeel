@@ -58,7 +58,7 @@ The builds are not signed with a commercial code-signing certificate (those cost
 
 - **Windows**: SmartScreen may warn → “More info” → “Run anyway”.
 - **macOS**: drag PixPeel to Applications. If it says the app is damaged / from an unverified developer, run `xattr -cr /Applications/PixPeel.app` or right-click → Open. Then enable **System Settings → Privacy & Security → Screen Recording** for PixPeel and restart it.
-- **Linux**: `chmod +x PixPeel-*.AppImage && ./PixPeel-*.AppImage`. On Wayland, global hotkeys and screen capture are restricted by the system; an X11 session is recommended (see Known limitations).
+- **Linux**: `chmod +x PixPeel-*.AppImage && ./PixPeel-*.AppImage`. On Wayland, box-select capture and global hotkeys are unavailable while everything else works — see [Linux desktop support](#linux-desktop-support).
 
 ## Usage
 
@@ -121,9 +121,32 @@ tools/      icon generator
 ## Known limitations
 
 - On busy / photographic backgrounds the automatic detection may pick the whole background block; use Wand / Lasso / AI pick.
-- On Linux Wayland, global hotkeys, screen capture and the transparent overlay may not work; the tray icon needs the AppIndicator extension on GNOME.
-- Builds are unsigned (see above). “Update” currently means “tell you a new version exists and open the download page”, not a silent in-place update.
+- On Linux **Wayland** sessions, box-select capture, point-and-pick capture and global hotkeys do not work: Wayland does not let an app position its own full-screen window or grab the keyboard globally. Importing images, splitting, board, SVG and the library all work. See [Linux desktop support](#linux-desktop-support) below.
+- Builds are unsigned (see above). Auto-update downloads and restarts for Windows and Linux AppImage; macOS, deb and rpm still open the download page instead.
 - Quit PixPeel from the tray before uninstalling, otherwise the uninstaller thinks the app is still running.
+
+## Linux desktop support
+
+PixPeel relies on what the desktop session allows. **Everything works on X11.** On Wayland a few features are impossible by protocol — not bugs.
+
+| Feature | X11 | Wayland | Notes |
+| --- | --- | --- | --- |
+| Import images (button / drag / `Ctrl+V`) | ✅ | ✅ | No desktop dependency |
+| Split, retouch, board, SVG, library, HD upscale | ✅ | ✅ | Pure in-app work |
+| Box-select capture (`Ctrl+Shift+X`) | ✅ | ❌ | The overlay must cover the screen at absolute coordinates; Wayland forbids client-side window positioning |
+| Point-and-pick capture (`Ctrl+Alt+X`) | ✅ | ❌ | Same, plus it needs click-through |
+| Global hotkeys | ✅ | ❌ | Electron `globalShortcut` is unavailable on Wayland |
+| Tray icon | ✅ | ⚠️ | Needs the AppIndicator extension on GNOME; native on KDE |
+| Notifications | ✅ | ⚠️ | Goes through xdg-desktop-portal; minimal desktops need a notification daemon |
+| “小剪动画” linking | ✅ | ✅ | Listens on `127.0.0.1` only |
+
+> The Wayland rows come from Electron 33’s documented limitations plus how this app is built (`overlay.html` / `live.html` use `BrowserWindow({x,y,width,height})` with `alwaysOnTop`), **not from item-by-item testing on a real Wayland machine**. If your results differ, please open an issue.
+
+### Working on Wayland
+
+1. Let the desktop take the screenshot: `Print` on GNOME, Spectacle on KDE, save it to a file;
+2. Use “Import image” in PixPeel, or just drag the file into the window — splitting, retouching, board and SVG all work;
+3. For a shortcut, bind a custom key in your desktop settings to the launch command (e.g. `pixpeel`) and make “screenshot → import” a two-step flow.
 
 ## Privacy
 

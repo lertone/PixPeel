@@ -1,7 +1,7 @@
 {
   "name": "pixpeel",
   "productName": "PixPeel",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Capture or import an image, auto-split it into elements and save them as transparent PNG stickers. 一键拆元素，存成透明底贴纸。",
   "main": "main.js",
   "author": "PixPeel contributors",
@@ -24,13 +24,13 @@
   "scripts": {
     "start": "electron .",
     "icons": "python3 tools/make-icons.py",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win --x64 && electron-builder --win --ia32 && electron-builder --win --arm64",
-    "dist:mac": "electron-builder --mac --x64 --arm64",
-    "dist:linux": "electron-builder --linux --x64 --arm64",
-    "dist:linux:core": "electron-builder --linux AppImage deb --x64 --arm64",
-    "dist:linux:rpm": "electron-builder --linux rpm --x64 --arm64",
-    "dist:win64": "electron-builder --win --x64"
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --ia32 --publish never && electron-builder --win --arm64 --publish never && electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --x64 --arm64 --publish never",
+    "dist:linux": "electron-builder --linux --x64 --arm64 --publish never",
+    "dist:linux:core": "electron-builder --linux AppImage deb --x64 --arm64 --publish never",
+    "dist:linux:rpm": "electron-builder --linux rpm --x64 --arm64 --publish never",
+    "dist:win64": "electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
     "electron": "^33.2.0",
@@ -40,7 +40,13 @@
     "appId": "com.pixpeel.app",
     "productName": "PixPeel",
     "copyright": "Copyright © 2026 PixPeel contributors",
-    "publish": null,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "lertone",
+        "repo": "PixPeel"
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -51,6 +57,7 @@
       "lib.js",
       "server.js",
       "config.js",
+      "updater.js",
       "overlay.html",
       "live.html",
       "renderer/**/*",
@@ -126,5 +133,8 @@
       ],
       "artifactName": "${productName}-${version}-linux-${arch}.${ext}"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
   }
 }

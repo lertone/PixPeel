@@ -8,8 +8,9 @@
    ```bash
    git tag v1.0.1 && git push origin v1.0.1
    ```
-4. GitHub Actions（`.github/workflows/release.yml`）会在 Windows / macOS / Linux 上分别打包，并自动创建 Release、附上所有安装包、`xiaoji-animation.html` 与 `SHA256SUMS.txt`。
+4. GitHub Actions（`.github/workflows/release.yml`）会在 Windows / macOS / Linux 上分别打包，并自动创建 Release、附上所有安装包、`xiaoji-animation.html`、`SHA256SUMS.txt` 和 `latest*.yml`（自动更新的版本清单，**别漏**）。
 5. Linux 的 rpm 包依赖构建机的 rpm 版本，所以 CI 里 Linux 固定跑在 `ubuntu-24.04`；以后换更新的 runner，记得先确认 rpm 还能打出来（AppImage 和 deb 不受影响）。
+6. Windows 三个架构是分三次跑的，**x64 必须放最后**（`dist:win` 里已经这么排），因为 `latest.yml` 会被最后一次构建覆盖。自动更新只对 Windows x64 和 Linux AppImage x64 开放，其它架构继续走下载页。
 
 改软件名只需改 `config.js` 与 `package.json`（`productName`、`appId`）；安装向导脚本和许可协议里也有名字，可全局替换一次。
 

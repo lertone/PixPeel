@@ -31,11 +31,8 @@ jobs:
         if: matrix.name == 'linux'
         run: sudo apt-get update && sudo apt-get install -y rpm && rpmbuild --version
       - run: npm install
-      - run: npm run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 没有代码签名证书时，不要去找证书（有证书后把这行删掉，并配置 CSC_LINK / CSC_KEY_PASSWORD）
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      # rpm 先跑：它会和 AppImage/deb 抢同一个 latest-linux.yml，让可自动更新的产物最后写，
+      # 否则自动更新清单里可能只剩 rpm（rpm 不能就地更新）。
       - name: Build rpm (Linux)
         if: matrix.name == 'linux'
         # rpm 依赖构建机的 rpm 版本，失败也不该拖垮整个发布（AppImage / deb 才是 Linux 主流）
@@ -43,6 +40,11 @@ jobs:
         run: npm run dist:linux:rpm
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - run: npm run ${{ matrix.script }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 没有代码签名证书时，不要去找证书（有证书后把这行删掉，并配置 CSC_LINK / CSC_KEY_PASSWORD）
           CSC_IDENTITY_AUTO_DISCOVERY: false
       - name: List built artifacts
         shell: bash
@@ -58,6 +60,7 @@ jobs:
             dist/*.AppImage
             dist/*.deb
             dist/*.rpm
+            dist/latest*.yml
 
   release:
     needs: build

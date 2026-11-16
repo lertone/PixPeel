@@ -59,7 +59,7 @@
 - **Windows**：可能出现“Windows 已保护你的电脑”（SmartScreen）→ 点“更多信息” → “仍要运行”。
 - **macOS**：打开 dmg 把 PixPeel 拖进“应用程序”。第一次若提示“已损坏 / 无法验证开发者”，在终端执行：
   `xattr -cr /Applications/PixPeel.app`，或右键 → 打开。然后在 **系统设置 → 隐私与安全性 → 屏幕录制** 勾选 PixPeel，重启软件。
-- **Linux**：`chmod +x PixPeel-*.AppImage && ./PixPeel-*.AppImage`。Wayland 下全局快捷键和屏幕截取受系统限制，建议在 X11 会话里使用（见下方“已知限制”）。
+- **Linux**：`chmod +x PixPeel-*.AppImage && ./PixPeel-*.AppImage`。Wayland 下框选截图和全局快捷键用不了，其余功能正常，见下方 [Linux 桌面环境支持情况](#linux-桌面环境支持情况)。
 
 ## 使用
 
@@ -129,9 +129,32 @@ tools/      图标生成脚本
 ## 已知限制
 
 - 元素放在复杂花哨的背景上时，自动判断可能取到整块背景，请用魔棒 / 套索 / AI 点选。
-- Linux Wayland 下全局快捷键、屏幕截取和透明覆盖层可能不可用；托盘图标在 GNOME 上需要 AppIndicator 扩展。
-- 安装包未签名（见上）；自动更新目前是“检查到新版本后带你去下载页”，没有静默替换。
+- Linux 的 Wayland 会话下，框选提取、点选提取和全局快捷键用不了（Wayland 协议不允许应用自己摆放全屏窗口、也不允许全局抢键盘）。导入图片、拆元素、画板、SVG、素材库全都正常，详见下方 [Linux 桌面环境支持情况](#linux-桌面环境支持情况)。
+- 安装包未签名（见上）；自动更新在 Windows 和 Linux AppImage 上是「下载后重启安装」，macOS 与 deb / rpm 仍然是「检查到新版本后带你去下载页」。
 - 卸载前先从托盘里退出 PixPeel，否则卸载程序会认为应用还在运行。
+
+## Linux 桌面环境支持情况
+
+PixPeel 在 Linux 上依赖桌面环境提供的能力。**X11 会话下功能完整**；Wayland 出于协议限制，有几个功能做不到——这不是 bug，是 Wayland 不允许应用自己定位窗口、也不允许应用全局抢键盘。
+
+| 功能 | X11 | Wayland | 说明 |
+| --- | --- | --- | --- |
+| 导入图片（按钮 / 拖入 / `Ctrl+V`） | ✅ | ✅ | 不依赖桌面环境 |
+| 拆元素、精修、画板、SVG、素材库、高清修复 | ✅ | ✅ | 纯应用内计算 |
+| 框选提取（`Ctrl+Shift+X`） | ✅ | ❌ | 覆盖层要按屏幕坐标铺满整块屏，Wayland 不允许客户端自己定位窗口 |
+| 点选提取（`Ctrl+Alt+X`） | ✅ | ❌ | 同上，而且还要鼠标穿透 |
+| 全局快捷键 | ✅ | ❌ | Electron 的 `globalShortcut` 在 Wayland 下不可用 |
+| 托盘图标 | ✅ | ⚠️ | GNOME 需要 AppIndicator 扩展；KDE 原生支持 |
+| 系统通知 | ✅ | ⚠️ | 走 xdg-desktop-portal，一般可用；极简桌面要自己装通知服务 |
+| 和「小剪动画」联动 | ✅ | ✅ | 只监听 `127.0.0.1` |
+
+> Wayland 那几行的结论来自 Electron 33 的已知限制和本项目的实现方式（`overlay.html` / `live.html` 用 `BrowserWindow({x,y,width,height})` 绝对定位 + `alwaysOnTop`），**没有在真机 Wayland 上逐项验证过**。你在 Wayland 上试出来的结果和这里不一致，欢迎开 issue 纠正。
+
+### Wayland 下怎么用
+
+1. 截屏交给桌面环境：GNOME 的 `Print` 键、KDE 的 Spectacle，存成文件；
+2. 在 PixPeel 里「导入图片」，或直接把文件拖进窗口——拆元素、精修、画板、SVG 全部可用；
+3. 想要快捷键，在系统设置里加一条自定义快捷键指向启动命令（如 `pixpeel`），把「截图 → 导入」串成两步。
 
 ## 隐私
 
