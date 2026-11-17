@@ -29,6 +29,7 @@ Everything runs locally. No uploads, no account.
 - **Link with the “小剪动画” video editor**: saved elements show up in its sticker library.
 - **Drag images in**: drop an image from the desktop onto the working area, or straight onto a rail button — “Extract” splits it, “Library” stores it, “Board” takes it as a material, “SVG Library / SVG Canvas” treat it as SVG.
 - Lives in the tray, optional launch at login, notification after saving (click it to open the library).
+- **Auto-update**: on Windows and Linux AppImage, Settings can download and install a new version for you — restart and it is done, with your library and settings kept. macOS and deb / rpm still open the download page. Downloads only start when you click; the app never pulls installers in the background.
 - 简体中文 / English, light / dark / system theme.
 
 ## Download
@@ -50,7 +51,7 @@ Each release includes `SHA256SUMS.txt` to verify downloads.
 There is also a companion web animation editor, “小剪动画” — download it on its own, it works without installing PixPeel:
 [xiaoji-animation.html](https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html).
 
-**Upgrading**: just run the new installer; it replaces the old version and keeps your settings and saved elements.
+**Upgrading**: on Windows and Linux AppImage, use **Settings → Privacy & updates → Check for updates → Download & install** and restart. For other install types, run the new installer over the old one. Either way your settings and library are kept.
 
 ### First-run notes
 
