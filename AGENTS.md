@@ -107,6 +107,9 @@ H5 主动拉 PixPeel：`GET /api/ping` → `{app:"pixpeel",version:1}`；`GET /a
 - **凡是「进入页面就挂载」的函数（`enter()` / `mount()`）必须先判空**。`document.importNode(null, true)` 会抛 TypeError 把整页打挂——SVG 画布从 v1.0.2 起就有这个洞（没导入过 SVG 时点导航即崩），v1.0.4 才补上空状态。
 - **别想当然认为滚动容器是外层**。`#segList` 自己带 `max-height:280px; overflow:auto`，真正滚的是它，不是外面的 `.inspBody`。保存/恢复 `scrollTop` 必须对 `#segList` 做（外层一起存无妨）。v1.0.4 一开始存错了对象，用户说「滑动后点元素跳回第一行」的 bug 其实一直没修好，v1.0.5 才真正修对。
 - **纵向 flex 子项默认 `min-height:auto`，会把盒子撑到内容高度**。素材库卡片的 `.im` 写了 `aspect-ratio:1`，竖长图仍然把缩略图撑高，同一行的方图卡片下方就留出大片空白（v1.0.5 及之前一直有）。修法是 `min-height:0` + `.grid{align-items:start}`，两个都要，少一个就还会不齐。
+- **`segPolishMask` 会把手动抠掉的东西补回来**。边缘处理的最后一步 `segFillHoles` 是洪水填充，会把「被前景完全包住」的洞填满——用户在元素内部用套索/魔棒「从当前减去」抠掉的细节正好是这种洞，于是导出时又长回去了，看起来像「减去没生效」。现在 `segApply` 给结果图层打 `L.manual = true`，`segPolishMask` 见到 manual 就直接返回原始 `L.m`（不补缝、不填洞）。**别把这行删掉**，也别忘了 `segApply` 重建图层时要把 `manual` 带上。
+- **键盘监听分「捕获」和「冒泡」两拨，别以为挂在 document 上就一定收得到**。`extras.js` / `board.js` / `svg.js` 都在 **document 捕获阶段** 吃空格（平移手势）和方向键，并且 `stopPropagation()`。所以弹层（比如元素预览面板）的键盘处理必须挂在 **window 的捕获阶段**，比 document 捕获更早，否则空格和方向键永远到不了冒泡监听器。判断「有没有被抢走」可以用 `e.defaultPrevented` 和 `.segStage` 的 cursor 当探针。
+- **元素列表的卡片按钮要 `stopPropagation`**。卡片整块是「点一下勾选/取消」，放大预览按钮在 `scBox` 里，不拦住就会顺带把勾选状态翻一次。
 - **自动生成的元素名要打标记才能跟随语言**。名字在创建时用 `t('elem')` 定死，切界面语言后就永远是旧语言的写法。做法是 `L.autoName = 序号`，切语言时重算；用户手动改过名字的要 `L.autoName = null`。
 - `segAuto()` 里那行 `SEG.layers = []` 要改成**只清当前 tile 的**，否则批量导入时会把别的图的元素冲掉。
 - 批量导入 + 拆分要串行（见上面的数据模型）。

@@ -20,6 +20,7 @@ Everything runs locally. No uploads, no account.
 - **Click-to-extract mode**: the screen stays as it is; hover highlights an element, click saves it straight to the library. Click as many as you like.
 - **Import images**: button, drag & drop, or `Ctrl+V`.
 - **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG. Two AI models to choose from: **quantized** (default — small, fast, light on memory) and **full precision** (slightly more accurate, roughly twice the download and memory). Switch in Settings.
+- **Element preview**: every element card has a zoom button in its bottom-right corner. It opens a panel with a vertical strip of thumbnails on the left and one enlarged element on the right — scroll the strip with the wheel or step with ↑ ↓ / PageUp / PageDown, toggle the current element with Space (the same state as the element list), and close with Esc.
 - **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
 - **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original. On top of Lanczos and unsharp masking it now does iterative back-projection and de-fringing, so edges look tighter and halos are less visible.
@@ -27,7 +28,7 @@ Everything runs locally. No uploads, no account.
 - **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt, and a one-click “Clear” (also undoable).
 - **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library. Marquee-select several layers, delete them together, drag the corners to scale, the top dot to rotate, and use the middle button to pan.
 - **Link with the “小剪动画” video editor**: saved elements show up in its sticker library.
-- **Drag images in**: drop an image from the desktop onto the working area, or straight onto a rail button — “Extract” splits it, “Library” stores it, “Board” takes it as a material, “SVG Library / SVG Canvas” treat it as SVG.
+- **Drag images in**: drop an image from the desktop onto the working area, or straight onto a rail button — “Extract” splits it, “Library” stores it, “Board” takes it as a material, “SVG Library / SVG Canvas” treat it as SVG. Library cards and board material tiles can also be dropped on “Extract” to be read back in and split again.
 - Lives in the tray, optional launch at login, notification after saving (click it to open the library).
 - **Auto-update**: on Windows and Linux AppImage, Settings can download and install a new version for you — restart and it is done, with your library and settings kept. macOS and deb / rpm still open the download page. Downloads only start when you click; the app never pulls installers in the background.
 - 简体中文 / English, light / dark / system theme.

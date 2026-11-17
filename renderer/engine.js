@@ -183,7 +183,8 @@ function segTargets(full){
 }
 function segApply(full){
   const {w,h}=SEG.src;
-  if(SEG.mode==='new'){const nl=segLayerFromFull(full,w,h);if(!nl){toast(t('eNoSel'));return}nl.tile=SEG.cur;SEG.layers.push(nl);SEG.sel=new Set([nl.id]);return}
+  /* manual：用户亲手画/加减过的蒙版，边缘处理不能再自作主张（见 segPolishMask） */
+  if(SEG.mode==='new'){const nl=segLayerFromFull(full,w,h);if(!nl){toast(t('eNoSel'));return}nl.tile=SEG.cur;nl.manual=true;SEG.layers.push(nl);SEG.sel=new Set([nl.id]);return}
   const ts=segTargets(full);
   if(!ts.length){toast(t(SEG.mode==='add'?'eNeedSel':'eNoHit'));return}
   let last=null;
@@ -192,7 +193,7 @@ function segApply(full){
     for(let i=0;i<cur.length;i++){if(SEG.mode==='add'){if(full[i])cur[i]=1}else if(full[i])cur[i]=0}
     const nl=segLayerFromFull(cur,w,h,L.name),ix=SEG.layers.indexOf(L);
     if(!nl){SEG.layers.splice(ix,1);SEG.sel.delete(L.id);continue}
-    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;nl.autoName=L.autoName;SEG.layers[ix]=nl;last=nl;
+    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;nl.autoName=L.autoName;nl.manual=true;SEG.layers[ix]=nl;last=nl;
   }
   SEG.sel=last?new Set([last.id]):new Set();
 }
@@ -288,6 +289,9 @@ function segFillCracks(m, w, h, maxGap) {
 function segPolishMask(L) {
   if (L.mp) return L.mp;
   if (!segEdgeOn() || !L.m) return (L.mp = L.m);
+  /* 用户手动画/加减过的图层：蒙版就是他亲手定的，别补缝、别填洞。
+     否则「从当前减去」抠掉的内部细节会被 segFillHoles 原样填回来，看起来像没生效。 */
+  if (L.manual) return (L.mp = L.m);
   /* 先闭运算补上边缘上的小缝隙，再接窄裂缝，最后填掉封闭的洞 */
   let m = segErode(segDilate(L.m, L.bw, L.bh, 1), L.bw, L.bh, 1);
   const gap = segGapWidth();

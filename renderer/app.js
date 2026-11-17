@@ -79,7 +79,8 @@ const IC = {
   pick: '<svg class="i" viewBox="0 0 24 24"><path d="M6 4l12 6-5 2-2 5z"/></svg>',
   wand: '<svg class="i" viewBox="0 0 24 24"><path d="M5 19L15 9M14 6l4 4M17 3v2M21 7h-2M7 5V3M6 4H4"/></svg>',
   lasso: '<svg class="i" viewBox="0 0 24 24"><path d="M12 5c4.4 0 8 1.8 8 4s-3.6 4-8 4-8-1.8-8-4 3.6-4 8-4z"/><path d="M8 13c-1 3 0 5 2 6"/></svg>',
-  ai: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7zM18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></svg>'
+  ai: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3l1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7zM18 16l.8 2.2L21 19l-2.2.8L18 22l-.8-2.2L15 19l2.2-.8z"/></svg>',
+  zoom: '<svg class="i" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg>'
 };
 function renderEmpty() {
   SEG.src = null; SEG.layers = []; SEG.tiles = []; SEG.cur = 0; SEG.wall = { w: 0, h: 0 };
@@ -183,7 +184,8 @@ function segList() {
     const tile = SEG.tiles[L.tile];
     return `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
       <div class="scBox"><canvas data-lt="${L.id}" width="${BOX}" height="${BOX}"></canvas>
-        <input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}></div>
+        <input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}>
+        <button class="pv" data-lp="${L.id}" title="${t('pvOpenTip')}" aria-label="${t('pvOpenTip')}">${IC.zoom}</button></div>
       <input class="segName" data-ln="${L.id}" value="${esc(L.name)}">
       <span class="dim">${L.bw}×${L.bh}</span>
       ${SEG.tiles.length > 1 && tile ? `<span class="src" title="${esc(tile.name)}">${esc(tile.name)}</span>` : ''}
@@ -198,6 +200,106 @@ function segList() {
     g.drawImage(segCut(L, 0).cv, Math.round((BOX - dw) / 2), Math.round((BOX - dh) / 2), dw, dh);
   });
 }
+
+/* ───────── 元素预览：左边长条缩略图（滚轮 / 方向键翻页），右边放大看 ─────────
+ * 只读 + 勾选，不改蒙版。勾选状态就是元素列表里的同一个 L.on。
+ * 面板挂在 body 上：拆元素页会整块重画，挂在 #v-edit 里会被冲掉。 */
+const PV = { open: false, i: 0 };
+function pvEl() {
+  let el = $('#pv');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'pv';
+  el.className = 'pvWrap';
+  el.innerHTML = `<div class="pvPanel" role="dialog" aria-modal="true">
+    <div class="pvHead"><b>${t('pvTitle')}</b><span class="pvName"></span><span class="pvSize dim"></span><span class="sp"></span><span class="pvIdx dim"></span>
+      <button class="pvX" title="${t('close')}" aria-label="${t('close')}">×</button></div>
+    <div class="pvBody"><div class="pvStrip" id="pvStrip"></div><div class="pvStage" id="pvStage"><canvas id="pvCv"></canvas></div></div>
+    <div class="pvFoot"><span class="tip">${t('pvHint')}</span><span class="sp"></span>
+      <label class="pvChkRow"><input type="checkbox" id="pvChk"><span>${t('pvCheck')}</span></label></div>
+  </div>`;
+  document.body.appendChild(el);
+  el.onclick = (e) => { if (e.target === el) pvClose(); };
+  el.querySelector('.pvX').onclick = () => pvClose();
+  $('#pvChk').onchange = (e) => { if (PV.open) pvToggle(PV.i, e.target.checked); };
+  const strip = $('#pvStrip');
+  strip.onclick = (e) => {
+    const it = e.target.closest('.pvItem'); if (!it) return;
+    if (e.target.matches('input')) return;      /* 复选框走 change，不要顺带翻页 */
+    pvSelect(+it.dataset.i);
+  };
+  strip.onchange = (e) => {
+    if (!e.target.matches('.pvCk')) return;
+    const it = e.target.closest('.pvItem'); if (it) pvToggle(+it.dataset.i, e.target.checked);
+  };
+  return el;
+}
+function pvOpen(id) {
+  if (!SEG.layers.length) { toast(t('pvEmpty')); return; }
+  const el = pvEl();
+  const i = SEG.layers.findIndex(l => l.id === id);
+  PV.open = true;
+  PV.i = i < 0 ? 0 : i;
+  el.classList.add('on');
+  pvStrip();
+  pvSelect(PV.i, true);
+}
+function pvClose() { PV.open = false; const el = $('#pv'); if (el) el.classList.remove('on'); }
+function pvStrip() {
+  const box = $('#pvStrip'); if (!box) return;
+  box.innerHTML = SEG.layers.map((L, i) => `<div class="pvItem${i === PV.i ? ' on' : ''}" data-i="${i}">
+    <canvas data-pi="${i}" width="56" height="56"></canvas>
+    <div class="pvMeta"><b title="${esc(L.name)}">${esc(L.name)}</b><span>${L.bw}×${L.bh}</span></div>
+    <input type="checkbox" class="pvCk" ${L.on ? 'checked' : ''} title="${t('pvCheck')}"></div>`).join('');
+  box.querySelectorAll('canvas[data-pi]').forEach(cv => {
+    const L = SEG.layers[+cv.dataset.pi]; if (!L) return;
+    const g = cv.getContext('2d'), BOX = 56, w = L.bw, h = L.bh, s = Math.min(BOX / w, BOX / h);
+    const dw = Math.max(1, Math.round(w * s)), dh = Math.max(1, Math.round(h * s));
+    g.clearRect(0, 0, BOX, BOX);
+    g.drawImage(segCut(L, 0).cv, Math.round((BOX - dw) / 2), Math.round((BOX - dh) / 2), dw, dh);
+  });
+}
+function pvSelect(i, quiet) {
+  const n = SEG.layers.length; if (!n) return;
+  i = Math.max(0, Math.min(n - 1, i));
+  PV.i = i;
+  const L = SEG.layers[i], el = $('#pv'); if (!L || !el) return;
+  el.querySelectorAll('.pvItem').forEach(it => it.classList.toggle('on', +it.dataset.i === i));
+  const cur = el.querySelector(`.pvItem[data-i="${i}"]`);
+  if (cur && !quiet && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+  el.querySelector('.pvName').textContent = L.name;
+  el.querySelector('.pvSize').textContent = L.bw + ' × ' + L.bh;
+  el.querySelector('.pvIdx').textContent = (i + 1) + ' / ' + n;
+  $('#pvChk').checked = !!L.on;
+  pvDraw();
+}
+function pvDraw() {
+  const L = SEG.layers[PV.i], cv = $('#pvCv'), stage = $('#pvStage');
+  if (!L || !cv || !stage) return;
+  const cut = segCut(L, 1).cv, r = stage.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const availW = Math.max(40, r.width - 48), availH = Math.max(40, r.height - 48);
+  /* 小图最多放大 3 倍：再大就是马赛克，看不出细节反而误导 */
+  const s = Math.min(availW / cut.width, availH / cut.height, 3);
+  const dw = Math.max(1, Math.round(cut.width * s)), dh = Math.max(1, Math.round(cut.height * s));
+  cv.width = Math.round(dw * dpr); cv.height = Math.round(dh * dpr);
+  cv.style.width = dw + 'px'; cv.style.height = dh + 'px';
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(cut, 0, 0, cv.width, cv.height);
+}
+function pvToggle(i, on) {
+  const L = SEG.layers[i]; if (!L) return;
+  L.on = !!on;
+  if (L.on) SEG.sel = new Set([L.id]);
+  $('#pvChk').checked = !!on;
+  const ck = document.querySelector(`#pvStrip .pvItem[data-i="${i}"] .pvCk`);
+  if (ck) ck.checked = !!on;
+  segList(); segRender();
+}
+function pvStep(d) { if (PV.open) pvSelect(PV.i + d); }
+window.addEventListener('resize', () => { if (PV.open) pvDraw(); });
 function segRender() {
   const cv = $('#segCv'); if (!cv || !SEG.src) return;
   const g = cv.getContext('2d'), W = SEG.wall.w || SEG.src.w, H = SEG.wall.h || SEG.src.h;
@@ -360,6 +462,8 @@ function segBindD() {
       });
       return;
     }
+    const pvBtn = e.target.closest('[data-lp]');
+    if (pvBtn) { e.stopPropagation(); pvOpen(pvBtn.dataset.lp); return; }
     const row = e.target.closest('.segRow, .segCard');
     if (row && !e.target.matches('input')) {
       const L = SEG.layers.find(l => l.id === row.dataset.l);
@@ -407,8 +511,21 @@ function segBindD() {
     segApply(full); segList(); segRender();
   };
 }
+/* 预览面板的键盘必须挂在 window 的「捕获」阶段：
+ * extras.js / board.js / svg.js 都在 document 捕获阶段吃空格（平移手势）和方向键，
+ * 挂冒泡阶段的话空格根本到不了这里。window 捕获比 document 捕获更早，面板打开时先归它管。 */
+window.addEventListener('keydown', (e) => {
+  if (!PV.open) return;
+  const eat = () => { e.preventDefault(); e.stopPropagation(); };
+  if (e.key === 'Escape') { eat(); pvClose(); return; }
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') { eat(); pvStep(1); return; }
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') { eat(); pvStep(-1); return; }
+  if (e.key === ' ' || e.code === 'Space') { eat(); const L = SEG.layers[PV.i]; if (L) pvToggle(PV.i, !L.on); return; }
+  if (e.key === 'Enter') { eat(); return; }
+}, true);
 /* 键盘：Enter 保存，Esc 收起，Ctrl+A 全选 */
 document.addEventListener('keydown', (e) => {
+  if (PV.open) return;                     // 面板打开时上面那个捕获监听已经接管
   if (/^(INPUT|SELECT|TEXTAREA)$/.test((e.target.tagName || '')) && e.target.type !== 'checkbox' && e.target.type !== 'range') return;
   if (!$('#v-edit').classList.contains('on') || !SEG.src) { if (e.key === 'Escape') api.hideWindow(); return; }
   if (e.key === 'Enter') { e.preventDefault(); if (SEG.layers.some(l => l.on)) doSave(); }
@@ -463,12 +580,21 @@ document.addEventListener('drop', async (e) => {
 });
 /* 把图片从桌面拖到左侧导航按钮上 = 直接用那个功能处理它（和拖进右边工作区不一样） */
 const NAV_DROP = {
-  edit: (f) => openFile(f),                 // 拆元素：导入并拆
+  edit: (f) => (typeof f === 'string' ? openRelInEdit(f) : openFile(f)),   // 拆元素：导入并拆（库里的元素也接）
   lib: (f) => saveDroppedToLib(f),         // 素材库：直接存进去
   board: (f) => addFileToBoard(f),         // 画板：加一个图层
   svglib: (f) => SvgLib.importFile(f),     // SVG 库：存成 SVG
   svgcanvas: (f) => SvgCanvas.openFile(f)  // SVG 画布：直接打开
 };
+/* 素材库 / 画板素材栏拖过来的元素（只有 rel，没有 File）：读出来再拆一次 */
+async function openRelInEdit(rel) {
+  try {
+    const bytes = await api.readLib(rel);
+    if (!bytes || !bytes.length) { toast(t('badImg')); return null; }
+    const bm = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    return await openImage(bm, bm.width, bm.height, rel.split('/').pop() || t('image'));
+  } catch (e) { console.error('openRelInEdit', e); toast(t('badImg')); return null; }
+}
 $('#nav').addEventListener('dragover', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
@@ -481,11 +607,15 @@ $('#nav').addEventListener('drop', async (e) => {
   const b = e.target.closest('button'); if (!b) return;
   e.preventDefault(); e.stopPropagation();          // 别让全局 drop 又处理一遍
   b.classList.remove('drop');
-  const f = [...(e.dataTransfer && e.dataTransfer.files || [])].find(x => x.type && x.type.startsWith('image/'));
-  if (!f) return;
+  const dt = e.dataTransfer;
+  const f = [...(dt && dt.files || [])].find(x => x.type && x.type.startsWith('image/'));
+  const rel = (dt && dt.getData('text/x-pixpeel-rel')) || '';
+  if (!f && !rel) return;
+  /* 库里的元素只有 rel 没有 File，目前只有「拆元素」能接（读出来再拆一次） */
+  if (rel && !f && b.dataset.v !== 'edit') { toast(t('navDropRelOnly')); return; }
   const fn = NAV_DROP[b.dataset.v];
   if (!fn) { toast(t('navDropNo')); return; }
-  await fn(f);
+  await fn(f || rel);
 });
 /* 拖到画板：加一个图层 */
 async function addFileToBoard(f) {
@@ -511,7 +641,13 @@ async function renderLib() {
   for (const it of list) { const g = it.group || t('noGroup'); (groups[g] = groups[g] || []).push(it); }
   el.innerHTML = `<div class="page"><div class="libHead"><h2 class="pt">${t('libTitle')}</h2><span class="sp"></span><button class="btn" id="lbOpen">${t('libOpen')}</button><button class="btn ghost" id="lbRef">${t('libRefresh')}</button><button class="btn danger" id="lbClear">${t('libClear')}</button></div>
   <p class="lead">${t('libLead', { n: list.length, p: '<span class="path">' + esc(CFG ? CFG.saveDir : '') + '</span>' })}<br>${t('libLead2')}</p>
-  ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div><div class="grid">${items.map(it => `<div class="cell" data-rel="${esc(it.rel)}" data-copy title="${t('clickCopy')}"><div class="im"><img loading="lazy" src="${esc(it.url)}"></div><div class="nm" title="${esc(it.name)}">${esc(it.name)}</div><div class="bar"><button class="btn sm" data-act="board" title="${t('toBoardTip')}">${t('toBoard')}</button><button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button><button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('') : '<div class="blank"><b>' + t('libEmptyT') + '</b><span>' + t('libEmptyD') + '</span></div>'}</div>`;
+  ${list.length ? Object.entries(groups).map(([g, items]) => `<div class="gh"><b>${esc(g)}</b><span>${t('nItems', { n: items.length })}</span></div><div class="grid">${items.map(it => `<div class="cell" draggable="true" data-rel="${esc(it.rel)}" data-copy title="${t('clickCopy')}"><div class="im"><img loading="lazy" src="${esc(it.url)}"></div><div class="nm" title="${esc(it.name)}">${esc(it.name)}</div><div class="bar"><button class="btn sm" data-act="board" title="${t('toBoardTip')}">${t('toBoard')}</button><button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button><button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('') : '<div class="blank"><b>' + t('libEmptyT') + '</b><span>' + t('libEmptyD') + '</span></div>'}</div>`;
+  /* 拖素材库的格子到左侧「拆元素」= 拿它再拆一次（和画板素材栏同一个拖拽格式） */
+  el.ondragstart = (e) => {
+    const c = e.target.closest('.cell'); if (!c) return;
+    e.dataTransfer.setData('text/x-pixpeel-rel', c.dataset.rel);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
   $('#lbOpen').onclick = () => api.openDir(); $('#lbRef').onclick = renderLib;
   $('#lbClear').onclick = () => clearAllPending('#v-lib', 'libClearUndo', 'libCleared');
   el.onclick = async (e) => {

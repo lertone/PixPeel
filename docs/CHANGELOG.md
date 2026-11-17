@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.7
+
+- **Fixed: “Subtract from current” appeared to do nothing.** After cutting a detail out of an element (by hand-drawn shape or the magic wand), the edge post-processing “fill enclosed holes” step put it straight back on export, so the work was lost. Layers you created, added to, or subtracted from by hand are now left alone by gap repair and hole filling, so a subtraction sticks (measured: the centre pixel of a disc went from alpha 255 to 0).
+- **New: element preview.** Every element card has a zoom button in its bottom-right corner. It opens a preview panel: a vertical strip of thumbnails on the left, one enlarged view on the right (small elements are magnified up to 3×; beyond that it is just pixel mush). Scroll the strip with the wheel, or step through with ↑ ↓ / PageUp / PageDown. Each row has a checkbox that is the same state as the element list; Space toggles the current element, Esc closes the panel.
+- **New: drag an element from the library or the board’s material bar onto “Extract” to split it again.** Library cards and the board’s material tiles can be dropped on the “Extract” entry in the left rail; the PNG is read back in and split automatically, so you can keep peeling details off elements you already saved. Dropping on any other section just says “Library elements can only be dropped on ‘Extract’ to split again”.
+- Fix: while the preview panel was open, Space and the arrow keys were swallowed by the Extract page’s “Space + drag to pan” gesture, so paging and ticking did nothing.
+
 ## 1.0.6
 
 - **Fixed: uneven cards in the library.** When a tall image and a square one shared a row, the tall thumbnail stretched its box and left a large blank area under the other card. Thumbnails are now a fixed 1:1 box, so every card is the same height and images are scaled to fit and centred.
