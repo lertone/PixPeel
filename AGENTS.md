@@ -158,7 +158,7 @@ node cdp.js test.js shot.png
 1. 改 `package.json` 的 `version`，在 `docs/CHANGELOG*.md` 写更新内容（**中英两份**）
 2. 确认 `config.js` / `package.json` / README 里的仓库地址是 `lertone/PixPeel`
 3. `git tag v1.0.x && git push origin v1.0.x` → CI 三平台打包并自动建 Release
-4. 等 CI 全绿，核对 Release 资产数量（应该是 18 个：13 个安装包（Windows 3 + macOS 4 + Linux 6）+ `xiaoji-animation.html` + `SHA256SUMS.txt` + `latest.yml` / `latest-mac.yml` / `latest-linux.yml`）
+4. 等 CI 全绿，核对 Release 资产数量（应该是 **19 个**：13 个安装包（Windows 3 + macOS 4 + Linux 6）+ `xiaoji-animation.html` + `SHA256SUMS.txt` + 4 份更新清单 `latest.yml` / `latest-mac.yml` / `latest-linux.yml` / `latest-linux-arm64.yml`）。Linux 会出两份清单（x64 与 arm64），别当成重复文件删掉。
 5. 下载 Windows x64 安装包 → 校验 SHA256 → 静默安装 → CDP 验证
 6. **删掉旧 Release 里多余的资产**（比如改过打包配置后），并同步修 `SHA256SUMS.txt`
 
