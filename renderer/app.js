@@ -773,6 +773,10 @@ async function renderSettings() {
     <label class="item"><div><div class="t">${t('sUpd')}</div><div class="d">${t('sUpdD')}</div></div>${sw('sUpd', CFG.checkUpdate)}</label>
     <div class="item"><div><div class="t">${t('sUpdNow')}</div><div class="d" id="updMsg"></div></div><button class="btn" id="sUpdNow">${t('sUpdNow')}</button></div>
     <div class="item"><div><div class="t">${t('sPrivDoc')}</div><div class="d">${t('sPrivDocD')}</div></div><button class="btn" id="sPrivDoc">${t('view')}</button></div></div>
+  <div class="set"><h3>${t('sDonate')}</h3>
+    <div class="item"><div><div class="d" style="margin:0">${t('sDonateD')}</div></div><span></span></div>
+    ${(CFG.donate || {}).kofi ? `<div class="item"><div><div class="t">Ko-fi</div><div class="d">${t('sKofiD')}</div></div><button class="btn" id="sKofi">${t('sDonateGo')}</button></div>` : ''}
+    ${(CFG.donate || {}).afdian ? `<div class="item"><div><div class="t">${t('sAfdian')}</div><div class="d">${t('sAfdianD')}</div></div><button class="btn" id="sAfdian">${t('sDonateGo')}</button></div>` : ''}</div>
   <div class="set"><h3>${t('sAbout')}</h3>
     <div class="about"><img src="icon.png" alt=""><div><div class="nm">${esc(CFG.name)}</div><div class="vs">${t('sVer')} ${esc(CFG.version)} · ${t('sVerD', { e: CFG.versions.electron, c: CFG.versions.chrome, n: CFG.versions.node })}</div></div></div>
     <div class="item"><div><div class="t">${t('sLog')}</div><div class="d">${t('sLogD')}</div></div><button class="btn" id="sLog">${t('view')}</button></div>
@@ -816,6 +820,9 @@ async function renderSettings() {
   $('#sPrivDoc').onclick = () => showDoc('PRIVACY', t('sPrivDoc'));
   $('#sLog').onclick = () => showDoc('CHANGELOG', t('sLog'));
   $('#sGit').onclick = () => api.openExternal(CFG.repoUrl);
+  const dz = CFG.donate || {};
+  if ($('#sKofi')) $('#sKofi').onclick = () => api.openExternal(dz.kofi);
+  if ($('#sAfdian')) $('#sAfdian').onclick = () => api.openExternal(dz.afdian);
   $('#sData').onclick = () => api.openUserData();
   $('#sReset').onclick = async () => { if (!confirm(t('resetAsk'))) return; CFG = await api.resetSettings(); applyAll(); renderEmpty(); toast(t('resetDone')); renderSettings(); };
   const rec = (btn, tipId, key) => { $(btn).onclick = () => {

@@ -162,6 +162,15 @@ PixPeel 在 Linux 上依赖桌面环境提供的能力。**X11 会话下功能�
 
 不收集任何数据，图片只在本机处理。详见 [docs/PRIVACY.zh-CN.md](docs/PRIVACY.zh-CN.md)。
 
+## 支持 PixPeel
+
+PixPeel 免费用于非商业用途。如果它帮你省下了时间，可以请我喝杯咖啡——完全自愿，不影响任何功能。
+
+- 海外：[Ko-fi](https://ko-fi.com/lertone)（信用卡、PayPal、Apple Pay、Google Pay）
+- 国内：[爱发电](https://ifdian.net/a/lt20061229)（微信支付、支付宝）
+
+捐赠不等于商用授权：公司业务使用、打包进商业产品、或基于它提供收费服务，仍然需要事先取得书面授权（见下方「许可」）。
+
 ## 许可
 
 [PolyForm Noncommercial License 1.0.0](LICENSE) —— **非商用免费**：个人学习、研究、爱好项目、教学、公益和宗教用途都可以免费使用，也可以阅读、修改源码。

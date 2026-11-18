@@ -12,6 +12,7 @@ PixPeel 是一个 **Electron 桌面应用**：截图或导入图片 → 自动�
 - 仓库：`https://github.com/lertone/PixPeel`（公开，main 分支）
 - 许可：**PolyForm Noncommercial License 1.0.0（非商用）**，1.0.8 起生效；1.0.7 及更早是按 MIT 发布的，那些版本仍按 MIT 提供（不可追溯）。改协议要同时改 `LICENSE`、`package.json` 的 `license`、`build/license.rtf`（安装向导协议页，用 `node build/gen-license-rtf.js` 从 LICENSE 重新生成）、README 中英两份。注意 electron-builder 的 `getNotLocalizedLicenseFile` 只要发现 `build/license.rtf` 就只用它，`license_<lang>.rtf` 会被忽略，所以协议页是单个中英双语文件
 - 仓库地址写在 `config.js` 的 `repo` 字段里，**「检查更新」功能靠它**，改了 GitHub 用户名必须同步改这里
+- 捐赠入口写在 `config.js` 的 `donate` 字段（Ko-fi + 爱发电），留空字符串就不显示对应按钮；`main.js` 的 `safeExternal` 白名单会自动包含这些域名，**新增外部链接域名必须走 config，别直接放宽 `safeExternal`**
 - 技术栈：Electron 33 + 原生 JS（没有框架、没有构建步骤），渲染进程是单页多视图
 - 界面语言：简体中文 / English，文案在 `renderer/i18n.js`（中英两份，**新增文案必须两边都加**）
 

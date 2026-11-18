@@ -1,0 +1,5 @@
+# 仓库右侧「Sponsor」按钮的配置。
+# GitHub Sponsors 目前不支持中国大陆，所以这里用 Ko-fi + 爱发电：
+# ko_fi 是 GitHub 原生支持的平台键，爱发电走 custom。
+ko_fi: lertone
+custom: ["https://ifdian.net/a/lt20061229"]

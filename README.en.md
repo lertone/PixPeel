@@ -154,6 +154,15 @@ PixPeel relies on what the desktop session allows. **Everything works on X11.** 
 
 No data is collected; images are processed locally. See [docs/PRIVACY.md](docs/PRIVACY.md).
 
+## Support PixPeel
+
+PixPeel is free for noncommercial use. If it saves you time, you can buy me a coffee — entirely optional, and no feature is locked behind it.
+
+- International: [Ko-fi](https://ko-fi.com/lertone) (credit card, PayPal, Apple Pay, Google Pay)
+- Mainland China: [Afdian](https://ifdian.net/a/lt20061229) (WeChat Pay, Alipay)
+
+A donation is not a commercial license: using PixPeel for your company's business, shipping it inside a commercial product, or offering a paid service based on it still needs written permission (see “License” below).
+
 ## License
 
 [PolyForm Noncommercial License 1.0.0](LICENSE) — **free for noncommercial use**: personal study, research, hobby projects, teaching, charity and religious use, including reading and modifying the source.

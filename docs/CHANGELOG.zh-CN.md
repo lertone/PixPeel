@@ -1,5 +1,13 @@
 # 更新日志
 
+## 1.0.10
+
+- **新增捐赠入口**：设置页加了一块「支持 PixPeel」，海外用户走 [Ko-fi](https://ko-fi.com/lertone)（信用卡、PayPal、Apple Pay、Google Pay），国内用户走 [爱发电](https://ifdian.net/a/lt20061229)（微信支付、支付宝）。完全自愿，不影响任何功能。
+- 仓库加了 `.github/FUNDING.yml`，GitHub 右侧会显示 Sponsor 按钮（Ko-fi + 爱发电）。GitHub Sponsors 目前不支持中国大陆，所以没有走官方 Sponsors。
+- README 中英各加一节「支持 PixPeel」，并写明**捐赠不等于商用授权**。
+- 捐赠链接写在 `config.js` 的 `donate` 字段里，留空就自动隐藏对应按钮。
+- 本次没有功能改动。
+
 ## 1.0.9
 
 - **修中文安装程序里协议页显示英文**：安装向导的协议页改成一个中英双语文件（`build/license.rtf`），先给中文摘要（非商业用途免费、商业用途需授权、1.0.7 及更早仍按 MIT），再接英文原文和隐私说明。

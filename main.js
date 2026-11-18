@@ -297,7 +297,7 @@ async function applyServer() {
 function publicSettings() {
   return {
     ...settings, serverRunning: server.running(), platform: process.platform,
-    langResolved: lang(), version: app.getVersion(), name: APP.name, repo: APP.repo, repoUrl: APP.repoUrl, repoConfigured: APP.configured,
+    langResolved: lang(), version: app.getVersion(), name: APP.name, repo: APP.repo, repoUrl: APP.repoUrl, repoConfigured: APP.configured, donate: APP.donate || {},
     versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
     userData: app.getPath('userData'), defaults: HOTKEY_DEFAULTS, locale: app.getLocale()
   };
@@ -335,7 +335,15 @@ async function checkUpdate() {
     return { ok: true, latest, current: app.getVersion(), newer: cmpVer(latest, app.getVersion()) > 0, url: j.html_url || (APP.repoUrl + '/releases'), canAuto: updater.supported() };
   } catch (e) { return { ok: false, code: 'err', msg: String(e.message || e) }; }
 }
-const safeExternal = (u) => /^https:\/\/(github\.com|api\.github\.com)\//.test(String(u)) ? shell.openExternal(u) : false;
+const safeExternal = (u) => {
+  /* 只放行 https 且域名在白名单里：GitHub（更新/项目页）+ config.js 里配置的捐赠入口 */
+  const hosts = new Set(['github.com', 'api.github.com']);
+  Object.values(APP.donate || {}).forEach((v) => { try { hosts.add(new URL(v).host); } catch (e) { /* 配置留空或写错就跳过 */ } });
+  try {
+    const url = new URL(String(u));
+    return url.protocol === 'https:' && hosts.has(url.host) ? shell.openExternal(u) : false;
+  } catch (e) { return false; }
+};
 
 /* ---------- IPC ---------- */
 function ipc() {

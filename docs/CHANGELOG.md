@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.10
+
+- **Donation links.** Settings now has a “Support PixPeel” section: [Ko-fi](https://ko-fi.com/lertone) for international supporters (credit card, PayPal, Apple Pay, Google Pay) and [Afdian](https://ifdian.net/a/lt20061229) for mainland China (WeChat Pay, Alipay). Entirely optional — nothing is locked behind it.
+- Added `.github/FUNDING.yml`, so the repository shows a Sponsor button (Ko-fi + Afdian). GitHub Sponsors itself is not available in mainland China, so it is not used.
+- Both READMEs gained a “Support PixPeel” section that also states **a donation is not a commercial license**.
+- The links live in the `donate` field of `config.js`; leave one empty and its button disappears.
+- No functional changes in this release.
+
 ## 1.0.9
 
 - **Fix: the license page in the Chinese installer showed English only.** The wizard's license page is now a single bilingual file (`build/license.rtf`): a Chinese summary first (free for noncommercial use, commercial use needs a license, v1.0.7 and earlier stay MIT), then the English terms and the privacy note.

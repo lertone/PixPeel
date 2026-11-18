@@ -5,5 +5,10 @@ module.exports = {
   /* 仓库地址：“你的用户名/仓库名”，“检查更新”靠它 */
   repo: 'lertone/PixPeel',
   get repoUrl() { return 'https://github.com/' + this.repo; },
-  get configured() { return !/YOUR_/.test(this.repo); }
+  get configured() { return !/YOUR_/.test(this.repo); },
+  /* 捐赠入口：留空字符串就不显示对应按钮。商用授权和捐赠是两回事，别混在一起。 */
+  donate: {
+    kofi: 'https://ko-fi.com/lertone',
+    afdian: 'https://ifdian.net/a/lt20061229'
+  }
 };
