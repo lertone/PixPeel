@@ -1,5 +1,11 @@
-/* 由 LICENSE 生成安装向导用的三个 RTF：license.rtf（默认）、license_en_US.rtf、license_zh_CN.rtf
- * 中文按 \uN? 转义（和原文件一致），非 ASCII 一律转义，避免 NSIS 读成乱码。 */
+/* 由 LICENSE 生成安装向导的协议页 build/license.rtf
+ *
+ * 注意：electron-builder 只要在 build/ 里发现 license.rtf（或 license.txt / license.html），
+ * 就只用这一个文件（见 app-builder-lib/out/util/license.js 的 getNotLocalizedLicenseFile），
+ * license_zh_CN.rtf / license_en_US.rtf 会被完全忽略。所以这里生成的是中英双语单文件。
+ *
+ * 中文按 \uN? 转义（有符号 16 位），输出纯 ASCII，避免 NSIS 读成乱码。
+ */
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
@@ -8,46 +14,39 @@ const lic = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8').replace(/\r\n/g,
 const lines = lic.split('\n');
 const start = lines.indexOf('Acceptance');
 const end = lines.indexOf('---');
-if (start < 0 || end < 0) throw new Error('LICENSE 结构不对');
+if (start < 0 || end < 0) throw new Error('LICENSE 结构不对（找不到 Acceptance 或 ---）');
 const terms = lines.slice(start, end).join('\n').replace(/\n+$/, '');
 
-const enIntro = `PixPeel
-PolyForm Noncommercial License 1.0.0
+const head = `PixPeel
+PolyForm Noncommercial License 1.0.0 / PolyForm 非商用许可 1.0.0
 
-PixPeel is free for noncommercial use. You may use it for personal study,
-research, hobby projects, teaching, charity and religious purposes, and you may
-read and modify the source. Commercial use - using it for your company's
-business, shipping it inside a commercial product, or offering a paid service
-based on it - needs a written license from the author.
+PixPeel 采用 PolyForm 非商用许可 1.0.0。
 
-Releases up to and including v1.0.7 were published under the MIT License and
-stay available under those terms. This license applies to v1.0.8 and later.
+- 非商业用途免费：个人学习、研究、爱好项目、教学、公益和宗教用途都可以免费使用，也可以阅读和修改源码。
+- 商业用途需要事先授权：公司内部业务使用、打包进商业产品、或基于它提供收费服务，请先在 GitHub Issues 里说明用途。
+- 1.0.7 及更早的版本按 MIT 协议发布，仍按原协议提供，不受本次变更影响。
 
-Full terms: https://polyformproject.org/licenses/noncommercial/1.0.0
-A copy is also installed next to the application as LICENSE. The English text
-below is the authoritative version.`;
+PixPeel is licensed under the PolyForm Noncommercial License 1.0.0.
 
-const enPrivacy = `Privacy: PixPeel processes your images only on your computer. It has no
-accounts, no analytics and no telemetry. Optional network use: (1) checking
-GitHub for a newer version, (2) downloading the AI model the first time you use
-AI pick. See the in-app Privacy Policy for details.`;
+- Free for noncommercial use: personal study, research, hobby projects, teaching, charity and religious use, including reading and modifying the source.
+- Commercial use needs a license first: using it for your company's business, shipping it inside a commercial product, or offering a paid service based on it - please open an issue on GitHub first.
+- Releases up to and including v1.0.7 were published under the MIT License and stay available under those terms.
 
-const zhIntro = `PixPeel
-PolyForm 非商用许可 1.0.0
+----------------------------------------------------------------
+许可全文 / Full license text（英文为准 / authoritative in English）
+https://polyformproject.org/licenses/noncommercial/1.0.0
+----------------------------------------------------------------`;
 
-PixPeel 可以免费用于非商业用途：个人学习、研究、爱好项目、教学、公益和宗教
-用途，也可以阅读和修改源码。商业用途——公司业务使用、打包进商业产品、或基于
-它提供收费服务——需要事先取得作者的书面授权。
+const tail = `----------------------------------------------------------------
 
-1.0.7 及更早的版本按 MIT 协议发布，仍然按原协议提供，不受本次变更影响。
-本协议从 1.0.8 开始生效。
+隐私：PixPeel 只在你自己的电脑上处理图片，没有账号、没有统计、没有遥测。
+可选联网只有两处：(1) 检查 GitHub 上有没有新版本，(2) 第一次使用 AI 点选时下载模型。
+详见应用内的隐私政策。
 
-完整条款：https://polyformproject.org/licenses/noncommercial/1.0.0
-安装目录下也带了一份 LICENSE。下面附上英文原文，以英文原文为准。`;
-
-const zhPrivacy = `隐私：PixPeel 只在你自己的电脑上处理图片，没有账号、没有统计、没有遥测。
-可选联网只有两处：(1) 检查 GitHub 上有没有新版本，(2) 第一次使用 AI 点选时
-下载模型。详见应用内的隐私政策。`;
+Privacy: PixPeel processes your images only on your computer. It has no accounts,
+no analytics and no telemetry. Optional network use: (1) checking GitHub for a
+newer version, (2) downloading the AI model the first time you use AI pick.
+See the in-app Privacy Policy for details.`;
 
 function esc(s) {
   let out = '';
@@ -58,7 +57,6 @@ function esc(s) {
     else if (ch === '}') out += '\\}';
     else if (c < 128) out += ch;
     else {
-      /* RTF 用有符号 16 位表示 */
       const v = c > 32767 ? c - 65536 : c;
       out += '\\u' + v + '?';
     }
@@ -73,13 +71,6 @@ function rtf(text) {
   return `{\\rtf1\\ansi\\ansicpg936\\deff0{\\fonttbl{\\f0\\fnil\\fcharset134 Microsoft YaHei;}{\\f1\\fnil\\fcharset0 Segoe UI;}}\\f0\\fs20 ${body}\n}`;
 }
 
-const en = [enIntro, terms, enPrivacy].join('\n\n');
-const zh = [zhIntro, terms, zhPrivacy].join('\n\n');
-
-fs.writeFileSync(path.join(root, 'build/license.rtf'), rtf(en), 'latin1');
-fs.writeFileSync(path.join(root, 'build/license_en_US.rtf'), rtf(en), 'latin1');
-fs.writeFileSync(path.join(root, 'build/license_zh_CN.rtf'), rtf(zh), 'latin1');
-console.log('license.rtf', fs.statSync(path.join(root, 'build/license.rtf')).size);
-console.log('license_en_US.rtf', fs.statSync(path.join(root, 'build/license_en_US.rtf')).size);
-console.log('license_zh_CN.rtf', fs.statSync(path.join(root, 'build/license_zh_CN.rtf')).size);
-
+const out = path.join(root, 'build/license.rtf');
+fs.writeFileSync(out, rtf([head, terms, tail].join('\n\n')), 'latin1');
+console.log('wrote', out, fs.statSync(out).size, 'bytes');

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.9
+
+- **Fix: the license page in the Chinese installer showed English only.** The wizard's license page is now a single bilingual file (`build/license.rtf`): a Chinese summary first (free for noncommercial use, commercial use needs a license, v1.0.7 and earlier stay MIT), then the English terms and the privacy note.
+- Removed `build/license_zh_CN.rtf` / `build/license_en_US.rtf`, which never took effect — electron-builder uses `build/license.rtf` whenever it exists and ignores the language-suffixed files.
+- `build/gen-license-rtf.js` now generates just that one file, and its header comment documents the pitfall.
+- No functional changes in this release.
+
 ## 1.0.8
 
 - **License changed from MIT to the PolyForm Noncommercial License 1.0.0.** Personal study, research, hobby projects, teaching, charity and religious use stay free, and you can still read and modify the source. **Commercial use now needs a license first** (using it for your company's business, shipping it inside a commercial product, or offering a paid service based on it). The installer's license page, the `LICENSE` file and the READMEs are all updated, and the license now ships inside the app.
