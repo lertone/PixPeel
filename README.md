@@ -164,4 +164,8 @@ PixPeel 在 Linux 上依赖桌面环境提供的能力。**X11 会话下功能�
 
 ## 许可
 
-[MIT](LICENSE)
+[PolyForm Noncommercial License 1.0.0](LICENSE) —— **非商用免费**：个人学习、研究、爱好项目、教学、公益和宗教用途都可以免费使用，也可以阅读、修改源码。
+
+**商业用途需要事先授权**：公司业务使用、打包进商业产品、或基于它提供收费服务，请先在 [Issues](https://github.com/lertone/PixPeel/issues) 里说明用途。
+
+1.0.7 及更早的版本是按 MIT 协议发布的，仍然按 MIT 提供，不受这次变更影响。

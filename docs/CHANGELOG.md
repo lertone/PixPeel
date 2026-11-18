@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.8
+
+- **License changed from MIT to the PolyForm Noncommercial License 1.0.0.** Personal study, research, hobby projects, teaching, charity and religious use stay free, and you can still read and modify the source. **Commercial use now needs a license first** (using it for your company's business, shipping it inside a commercial product, or offering a paid service based on it). The installer's license page, the `LICENSE` file and the READMEs are all updated, and the license now ships inside the app.
+- Note: releases up to and including v1.0.7 were published under the MIT License, and anyone who already has those versions keeps those terms — this change is not retroactive.
+- No functional changes in this release.
+
 ## 1.0.7
 
 - **Fixed: “Subtract from current” appeared to do nothing.** After cutting a detail out of an element (by hand-drawn shape or the magic wand), the edge post-processing “fill enclosed holes” step put it straight back on export, so the work was lost. Layers you created, added to, or subtracted from by hand are now left alone by gap repair and hole filling, so a subtraction sticks (measured: the centre pixel of a disc went from alpha 255 to 0).

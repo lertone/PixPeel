@@ -156,4 +156,8 @@ No data is collected; images are processed locally. See [docs/PRIVACY.md](docs/P
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial License 1.0.0](LICENSE) — **free for noncommercial use**: personal study, research, hobby projects, teaching, charity and religious use, including reading and modifying the source.
+
+**Commercial use needs a license first**: using it for your company's business, shipping it inside a commercial product, or offering a paid service based on it — open an issue on [Issues](https://github.com/lertone/PixPeel/issues) and say what you have in mind.
+
+Releases up to and including v1.0.7 were published under the MIT License and remain available under those terms.
