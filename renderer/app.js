@@ -83,8 +83,7 @@ const IC = {
   zoom: '<svg class="i" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M8 10.5h5M10.5 8v5"/></svg>'
 };
 function renderEmpty() {
-  SEG.src = null; SEG.layers = []; SEG.tiles = []; SEG.cur = 0; SEG.wall = { w: 0, h: 0 };
-  SEG.sel.clear(); SEG.hov = null; SEG.lasso = null;
+  segReset();                       /* 释放上一批图的 canvas / 像素数据，序号归 1 */
   $('#v-edit').innerHTML = `<div class="empty"><div class="finder" id="drop">
     <h2>${t('emTitle', { k: '<kbd>' + esc(pretty(CFG && CFG.hotkey)) + '</kbd>' })}</h2>
     <p>${t('emP1')}</p>
@@ -94,8 +93,21 @@ function renderEmpty() {
   $('#emCap').onclick = () => api.capture();
   $('#emImp').onclick = () => api.importImage();
 }
+/* 批量导入时别每张图都重画整个界面：攒到批次结束统一画一次。
+ * 一次导入 N 张图以前会重建 N 次 DOM、画 N 次缩略图，图越多越卡。 */
+let BATCH = 0;
+async function runBatch(fn) {
+  BATCH++;
+  try { return await fn(); }
+  finally {
+    BATCH--;
+    if (!BATCH) {
+      if (SEG.src) { buildEdit(); segRender(); segList(); }
+      else renderEmpty();
+    }
+  }
+}
 function openImage(el, w, h, name) {
-  if (SEG.ai) { try { SEG.ai.w.terminate(); URL.revokeObjectURL(SEG.ai.url); } catch (e) { } SEG.ai = null; }
   /* 批量导入：每张图都是拼贴墙上的一块，元素全部汇总到一个列表里 */
   const src = segPrep(el, w, h);
   const tile = segAddTile(src, name);
@@ -105,14 +117,15 @@ function openImage(el, w, h, name) {
   SEG.sel = new Set(); SEG.hov = null; SEG.tool = 'pick'; SEG.mode = 'new'; SEG.lasso = null;
   SEG.name = name || t('image');
   showView('edit');
-  buildEdit();
+  if (!BATCH || !$('#segCv')) buildEdit();      // 批次里只在第一张时建一次界面
   segBusy(t('splitting'));
   const before = new Set(SEG.layers.map(l => l.id));
   return new Promise(res => setTimeout(async () => {
     SEG.cur = tileIdx; SEG.src = src;          // 拆的时候锁死这一张，别被别的图抢走
     const info = await segAuto();
     SEG.layers.forEach(l => { if (!before.has(l.id)) { l.tile = tileIdx; l.on = false; } });
-    segBusy(''); segRender(); segList();
+    segBusy('');
+    if (!BATCH) { segRender(); segList(); }
     const tp = $('#segInfo'); if (tp) tp.textContent = info;
     res(SEG.layers.length - before.size);
   }, 30));
@@ -175,14 +188,19 @@ function segList() {
   const bs = $('#bSave'); if (bs) { bs.textContent = n ? t('saveSel', { n }) : t('saveHint'); bs.disabled = !n; }
   /* 元素列表做成卡片网格：列数随侧栏宽度自动变，缩略图给足空间，不再一小条一小条地挤着 */
   const BOX = 96;
-  /* 整块重画会把滚动位置弹回顶部，先记住、画完再放回去。
-     注意：真正滚的是 #segList 自己（max-height:280px + overflow:auto），外面那层 .inspBody 有时也在滚，两个都要还回去 */
-  const box = el.closest('.inspBody') || el.parentElement;
-  const keepTop = el.scrollTop;
-  const keepBody = box ? box.scrollTop : 0;
-  el.innerHTML = SEG.layers.length ? SEG.layers.map(L => {
-    const tile = SEG.tiles[L.tile];
-    return `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
+  /* 图层集合没变（只是勾选 / 选中 / 改名）时不重建 DOM：
+     点一下元素就重建几十张卡片是选取卡顿的主要来源。 */
+  const sig = I18N.lang + '|' + SEG.layers.map(l => l.id).join(',');
+  const same = el.dataset.sig === sig && !!el.querySelector('.segCard');
+  if (!same) {
+    /* 整块重画会把滚动位置弹回顶部，先记住、画完再放回去。
+       注意：真正滚的是 #segList 自己（max-height:280px + overflow:auto），外面那层 .inspBody 有时也在滚，两个都要还回去 */
+    const box = el.closest('.inspBody') || el.parentElement;
+    const keepTop = el.scrollTop;
+    const keepBody = box ? box.scrollTop : 0;
+    el.innerHTML = SEG.layers.length ? SEG.layers.map(L => {
+      const tile = SEG.tiles[L.tile];
+      return `<div class="segCard${L.on ? ' sel' : ''}" data-l="${L.id}">
       <div class="scBox"><canvas data-lt="${L.id}" width="${BOX}" height="${BOX}"></canvas>
         <input type="checkbox" data-lc="${L.id}" ${L.on ? 'checked' : ''}>
         <button class="pv" data-lp="${L.id}" title="${t('pvOpenTip')}" aria-label="${t('pvOpenTip')}">${IC.zoom}</button></div>
@@ -190,8 +208,19 @@ function segList() {
       <span class="dim">${L.bw}×${L.bh}</span>
       ${SEG.tiles.length > 1 && tile ? `<span class="src" title="${esc(tile.name)}">${esc(tile.name)}</span>` : ''}
     </div>`; }).join('') : '<div class="tip">' + t('noElems') + '</div>';
-  if (box) box.scrollTop = keepBody;
-  el.scrollTop = keepTop;
+    el.dataset.sig = sig;
+    if (box) box.scrollTop = keepBody;
+    el.scrollTop = keepTop;
+  } else {
+    for (const L of SEG.layers) {
+      const card = el.querySelector(`.segCard[data-l="${L.id}"]`); if (!card) continue;
+      card.classList.toggle('sel', !!L.on);
+      const ck = card.querySelector('input[data-lc]');
+      if (ck && ck.checked !== !!L.on) ck.checked = !!L.on;
+      const nm = card.querySelector('input[data-ln]');
+      if (nm && document.activeElement !== nm && nm.value !== L.name) nm.value = L.name;
+    }
+  }
   el.querySelectorAll('canvas[data-lt]').forEach(cv => {
     const L = SEG.layers.find(l => l.id === cv.dataset.lt); if (!L) return;
     const g = cv.getContext('2d'), w = L.bw, h = L.bh, s = Math.min(BOX / w, BOX / h);
@@ -300,6 +329,12 @@ function pvToggle(i, on) {
 }
 function pvStep(d) { if (PV.open) pvSelect(PV.i + d); }
 window.addEventListener('resize', () => { if (PV.open) pvDraw(); });
+/* 鼠标移动时把重绘合并到下一帧：套索每个 pointermove 都全画一遍会很卡 */
+let _segRaf = 0;
+function segRenderSoon() {
+  if (_segRaf) return;
+  _segRaf = requestAnimationFrame(() => { _segRaf = 0; segRender(); });
+}
 function segRender() {
   const cv = $('#segCv'); if (!cv || !SEG.src) return;
   const g = cv.getContext('2d'), W = SEG.wall.w || SEG.src.w, H = SEG.wall.h || SEG.src.h;
@@ -485,10 +520,10 @@ function segBindD() {
   const cv = $('#segCv');
   cv.onpointermove = (e) => {
     const p = segWallPt(e);
-    if (p.tile !== segCurTile()) { if (SEG.hov) { SEG.hov = null; segRender(); } return; }
-    if (SEG.tool === 'lasso' && SEG.lasso) { SEG.lasso.push(segPt(e)); segRender(); return; }
+    if (p.tile !== segCurTile()) { if (SEG.hov) { SEG.hov = null; segRenderSoon(); } return; }
+    if (SEG.tool === 'lasso' && SEG.lasso) { SEG.lasso.push(segPt(e)); segRenderSoon(); return; }
     if (SEG.tool !== 'pick') return;
-    const [x, y] = segPt(e), L = segAt(x, y), id = L ? L.id : null; if (id !== SEG.hov) { SEG.hov = id; segRender(); }
+    const [x, y] = segPt(e), L = segAt(x, y), id = L ? L.id : null; if (id !== SEG.hov) { SEG.hov = id; segRenderSoon(); }
   };
   cv.onpointerleave = () => { if (SEG.hov) { SEG.hov = null; segRender(); } };
   cv.onpointerdown = async (e) => {
@@ -546,10 +581,13 @@ async function openFile(f) {
 }
 /* 批量导入：一次选多张，依次拆开，元素全部汇总 */
 async function openFiles(list) {
-  let n = 0;
-  for (const f of list) { const c = await openFile(f); if (c) n += c; }
-  toast(t('batchDone', { img: list.length, n }));
-  return n;
+  return runBatch(async () => {
+    segReset();                       /* 新的一批：释放上一批的 canvas / 像素数据，序号归 1 */
+    let n = 0;
+    for (const f of list) { const c = await openFile(f); if (c) n += c; }
+    toast(t('batchDone', { img: list.length, n }));
+    return n;
+  });
 }
 /* 外部拖图进来：按当前页签决定怎么处理
  * 拆元素页 → 导入并拆解；画板 → 当图层/底图；素材库 → 直接存进库；SVG 库 / SVG 画布 → 当 SVG 处理 */
@@ -580,7 +618,7 @@ document.addEventListener('drop', async (e) => {
 });
 /* 把图片从桌面拖到左侧导航按钮上 = 直接用那个功能处理它（和拖进右边工作区不一样） */
 const NAV_DROP = {
-  edit: (f) => (typeof f === 'string' ? openRelInEdit(f) : openFile(f)),   // 拆元素：导入并拆（库里的元素也接）
+  edit: (f) => { segReset(); return (typeof f === 'string' ? openRelInEdit(f) : openFile(f)); },   // 拆元素：导入并拆（库里的元素也接）
   lib: (f) => saveDroppedToLib(f),         // 素材库：直接存进去
   board: (f) => addFileToBoard(f),         // 画板：加一个图层
   svglib: (f) => SvgLib.importFile(f),     // SVG 库：存成 SVG
@@ -630,7 +668,7 @@ async function saveDroppedToLib(f) {
     if (r && r.ok) { toast(t('savedLibDrop')); if ($('#v-lib').classList.contains('on')) renderLib(); } else toast(t('saveFail'));
   } catch (e) { toast(t('saveFail')); }
 }
-document.addEventListener('paste', (e) => { const f = [...(e.clipboardData && e.clipboardData.files || [])].find(f => f.type.startsWith('image/')); if (f) openFile(f); });
+document.addEventListener('paste', (e) => { const f = [...(e.clipboardData && e.clipboardData.files || [])].find(f => f.type.startsWith('image/')); if (f) { segReset(); openFile(f); } });
 
 /* ───────── 素材库 ───────── */
 async function renderLib() {
@@ -861,8 +899,13 @@ async function startAutoUpdate() {
 /* ───────── 启动 ───────── */
 (async function () {
   CFG = await api.getSettings(); applyAll(); renderEmpty();
-  api.onImage((d) => openDataURL(d.dataURL, d.name));
-  api.onImages((d) => { (async () => { for (const it of d.items || []) await openDataURL(it.dataURL, it.name); })(); });
+  api.onImage((d) => { segReset(); openDataURL(d.dataURL, d.name); });
+  api.onImages((d) => {
+    runBatch(async () => {
+      segReset();
+      for (const it of d.items || []) await openDataURL(it.dataURL, it.name);
+    });
+  });
   api.onSettings((s) => { CFG = s; applyAll(); });
   api.onToast((m) => toast(m));
   api.onNav((v) => showView(v));

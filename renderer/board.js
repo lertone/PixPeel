@@ -9,19 +9,41 @@ const Board = (() => {
   const PRESETS = [['1080x1080', '1:1 · 1080×1080'], ['1920x1080', '16:9 · 1920×1080'], ['1080x1920', '9:16 · 1080×1920'],
   ['1600x1200', '4:3 · 1600×1200'], ['1200x1600', '3:4 · 1200×1600'], ['512x512', '512×512'], ['2480x3508', 'A4 · 2480×3508']];
   const SWATCHES = ['transparent', '#ffffff', '#f2f2f2', '#111111', '#52e3bd', '#ff6b6b', '#ffd166', '#4dabf7', '#b197fc'];
+  /* 文字只用系统字体：不打包字体文件，体积和授权都干净。key → 实际 font-family 栈 */
+  const FONTS = [
+    ['sans', 'fSans', 'system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif'],
+    ['hei', 'fHei', '"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif'],
+    ['song', 'fSong', '"Songti SC", SimSun, "Noto Serif CJK SC", serif'],
+    ['kai', 'fKai', '"Kaiti SC", KaiTi, STKaiti, "Noto Serif CJK SC", serif'],
+    ['serif', 'fSerif', 'Georgia, "Times New Roman", "Songti SC", serif'],
+    ['mono', 'fMono', '"Cascadia Mono", Consolas, "Courier New", monospace']
+  ];
+  const FONTMAP = {}; FONTS.forEach(f => { FONTMAP[f[0]] = f[2]; });
+  /* 对齐图标（内联 SVG，跟着文字颜色走，不依赖字体里的箭头符号） */
+  const ICON = {
+    l: '<svg viewBox="0 0 16 16"><path d="M2 2v12M5 4.5h8M5 8h5M5 11.5h8"/></svg>',
+    cx: '<svg viewBox="0 0 16 16"><path d="M8 1.5v13M3 4.5h10M4.5 8h7M3 11.5h10"/></svg>',
+    r: '<svg viewBox="0 0 16 16"><path d="M14 2v12M11 4.5H3M11 8H6M11 11.5H3"/></svg>',
+    t: '<svg viewBox="0 0 16 16"><path d="M2 2h12M4.5 5v8M8 5v5M11.5 5v8"/></svg>',
+    cy: '<svg viewBox="0 0 16 16"><path d="M1.5 8h13M4.5 3v10M8 4.5v7M11.5 3v10"/></svg>',
+    b: '<svg viewBox="0 0 16 16"><path d="M2 14h12M4.5 11V3M8 11V6M11.5 11V3"/></svg>',
+    center: '<svg viewBox="0 0 16 16"><path d="M8 1v14M1 8h14M5.5 5.5h5v5h-5z"/></svg>'
+  };
   const MIN = 16, MAX = 8192, MAXPX = 50e6;
   const cache = new Map();   // 素材 rel → Image
   const isOn = () => { const v = $('#v-board'); return !!(v && v.classList.contains('on')); };
   const sel = () => B.layers.find(l => l.id === B.sel) || null;
   /** 当前选中的图层（多选时返回全部，没多选就返回主选中的那个） */
-  const sels = () => { if (B.multi.size) return B.layers.filter(l => B.multi.has(l.id)); const s = sel(); return s ? [s] : []; };
+  const sels = () => { const m = B.layers.filter(l => B.multi.has(l.id)); if (m.length) return m; const s = sel(); return s ? [s] : []; };
   const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || '#52e3bd';
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
   /* ───────── 撤回 / 重做 ───────── */
   const H = { u: [], r: [], key: '', t: 0 };
   const snapB = () => ({ W: B.W, H: B.H, bg: B.bg, sel: B.sel, L: B.layers.map(l => Object.assign({}, l)),
-    k: JSON.stringify([B.W, B.H, B.bg, B.layers.map(l => [l.id, l.x, l.y, l.s, l.r])]) });
+    k: JSON.stringify([B.W, B.H, B.bg, B.layers.map(l => [l.id, l.x, l.y, l.s, l.r,
+      l.kind || '', l.text || '', l.font || '', l.size || 0, l.weight || 0, l.italic ? 1 : 0,
+      l.color || '', l.align || '', l.lineH || 0, l.letter || 0])]) });
   function hpush(b) { if (b.k === snapB().k) return; H.u.push(b); if (H.u.length > 80) H.u.shift(); H.r = []; hui(); }
   /** 做一步操作并记入历史；key 相同且间隔很短的连续操作（拖取色器、连按方向键）合并成一步 */
   function act(fn, key) {
@@ -47,12 +69,39 @@ const Board = (() => {
           <input id="bdW" type="number" min="${MIN}" max="${MAX}"><span>×</span><input id="bdH" type="number" min="${MIN}" max="${MAX}"><span>px</span></div>
         <div class="bd-g"><span>${t('bdBg')}</span><div class="bd-sw" id="bdSw">${SWATCHES.map(c => `<i data-c="${c}" class="${c === 'transparent' ? 'tp' : ''}" style="${c === 'transparent' ? '' : 'background:' + c}" title="${c === 'transparent' ? t('bdTransparent') : c}"></i>`).join('')}</div>
           <input type="color" id="bdCol" value="#ffffff" title="${t('bdPickColor')}"></div>
-        <div class="bd-act"><button class="btn" id="bdImp">${t('bdImport')}</button>
+        <div class="bd-act"><button class="btn" id="bdTxtAdd">${t('bdTxtAdd')}</button>
+        <button class="btn" id="bdImp">${t('bdImport')}</button>
         <button class="btn" id="bdToLib">${t('bdToLib')}</button>
         <select id="bdFmt"><option value="png">PNG</option><option value="jpg">JPG</option></select>
         <button class="btn primary" id="bdExp">${t('bdExport')}</button></div>
       </div>
-      <div class="bd-stage" id="bdStage"><canvas id="bdCv"></canvas><div class="bd-empty" id="bdEmpty">${t('bdEmptyHint')}</div></div>
+      <div class="bd-stage" id="bdStage"><canvas id="bdCv"></canvas><div class="bd-empty" id="bdEmpty">${t('bdEmptyHint')}</div>
+        <div class="bd-tx" id="bdTxtPanel">
+          <div class="bd-txh"><b>${t('bdText')}</b><span class="sp"></span><span class="bd-tip2">${t('bdTxtTip')}</span></div>
+          <textarea id="bdTxtBody" data-tp="text" rows="3" spellcheck="false" placeholder="${t('bdTxtNew')}"></textarea>
+          <div class="bd-trow"><span>${t('bdTxtFont')}</span><select id="bdTxtFont" data-tp="font">${FONTS.map(f => `<option value="${f[0]}">${t(f[1])}</option>`).join('')}</select></div>
+          <div class="bd-trow"><span>${t('bdTxtSize')}</span><input id="bdTxtSize" data-tp="size" type="number" min="4" max="2000" step="1">
+            <span>${t('bdTxtLH')}</span><input id="bdTxtLH" data-tp="lh" type="number" min="0.5" max="4" step="0.05"></div>
+          <div class="bd-trow"><span>${t('bdTxtLS')}</span><input id="bdTxtLS" data-tp="ls" type="number" min="-100" max="400" step="0.5">
+            <span>${t('bdTxtColor')}</span><input id="bdTxtCol" data-tp="color" type="color"></div>
+          <div class="bd-trow"><button class="btn sm" data-tf="b" title="${t('bdTxtBold')}">B</button><button class="btn sm" data-tf="i" title="${t('bdTxtItalic')}"><i>I</i></button>
+            <select id="bdTxtAlign" data-tp="align"><option value="left">${t('bdTxtLeft')}</option><option value="center">${t('bdTxtCenter')}</option><option value="right">${t('bdTxtRight')}</option></select></div>
+        </div>
+      </div>
+      <div class="bd-bar bd-align">
+        <div class="bd-g"><span>${t('bdAlign')}</span><select id="bdBase" title="${t('bdBaseTip')}"><option value="canvas">${t('bdBaseCanvas')}</option><option value="sel">${t('bdBaseSel')}</option></select></div>
+        <div class="bd-g bd-al">
+          <button class="btn sm" data-al="l" title="${t('bdAlL')}">${ICON.l}</button>
+          <button class="btn sm" data-al="cx" title="${t('bdAlCx')}">${ICON.cx}</button>
+          <button class="btn sm" data-al="r" title="${t('bdAlR')}">${ICON.r}</button>
+          <span class="bd-vs"></span>
+          <button class="btn sm" data-al="t" title="${t('bdAlT')}">${ICON.t}</button>
+          <button class="btn sm" data-al="cy" title="${t('bdAlCy')}">${ICON.cy}</button>
+          <button class="btn sm" data-al="b" title="${t('bdAlB')}">${ICON.b}</button>
+        </div>
+        <div class="bd-g"><button class="btn sm" id="bdCenter" title="${t('bdCenterTip')}">${ICON.center} ${t('bdCenter')}</button></div>
+        <span class="sp"></span><span class="bd-hint">${t('bdAlignTip')}</span>
+      </div>
       <div class="bd-bar bd-bot">
         <div class="bd-g"><button class="btn sm" id="bdUndo" title="${t('undo')} (Ctrl+Z)">↶</button><button class="btn sm" id="bdRedo" title="${t('redoH')} (Ctrl+Shift+Z)">↷</button></div>
         <div class="bd-g" id="bdTools"><span>${t('bdAngle')}</span><input id="bdAng" type="number" min="-180" max="180" step="1">°
@@ -74,6 +123,11 @@ const Board = (() => {
     const v = $('#v-board'); v.innerHTML = html(); B.lang = I18N.lang; B.mounted = true;
     const st = $('#bdStage'), cv = $('#bdCv');
     $('#bdRef').onclick = loadMat;
+    $('#bdTxtAdd').onclick = () => addText();
+    document.querySelectorAll('#v-board [data-al]').forEach(b => { b.onclick = () => alignTo(b.dataset.al); });
+    $('#bdCenter').onclick = centerCanvas;
+    $('#bdBase').onchange = () => tools();
+    bindTextPanel();
     $('#bdImp').onclick = () => $('#bdFile').click();
     $('#bdFile').onchange = async (e) => { for (const f of [...e.target.files]) await addFile(f, null); e.target.value = ''; };
     $('#bdPre').onchange = (e) => { if (e.target.value === 'custom') return; const [w, h] = e.target.value.split('x').map(Number); B.sizeTouched = true; act(() => setSize(w, h, true)); };
@@ -94,6 +148,7 @@ const Board = (() => {
     $('#bdUndo').onclick = undo; $('#bdRedo').onclick = redo;
     st.addEventListener('wheel', (e) => { e.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
     cv.addEventListener('pointerdown', down); cv.addEventListener('pointermove', move); cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+    cv.addEventListener('dblclick', onDblClick);
     st.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
     st.addEventListener('drop', async (e) => {
       e.preventDefault(); e.stopPropagation();
@@ -137,6 +192,124 @@ const Board = (() => {
     try { const im = await imgFromBlob(f); addLayer(im, f.name, at, true); } catch (e) { toast(t('badImg')); }
   }
 
+  /* ───────── 文字图层 ─────────
+   * 文字不存成位图：只存参数，绘制时按当前缩放矢量画，放大和导出都不糊。
+   * w/h 是「实际有墨迹的紧致外框」，和图片层用同一套坐标约定（以图层中心为原点）。 */
+  let mctx = null;
+  const measureCtx = () => {
+    if (!mctx) { const c = document.createElement('canvas'); c.width = c.height = 8; mctx = c.getContext('2d'); }
+    return mctx;
+  };
+  function textFont(l) {
+    const fam = FONTMAP[l.font] || l.font || FONTMAP.sans;
+    return `${l.italic ? 'italic ' : ''}${(l.weight || 400) >= 600 ? 700 : 400} ${Math.max(1, l.size || 16)}px ${fam}`;
+  }
+  function textLayout(l) {
+    const key = [l.text, l.font, l.size, l.weight, l.italic, l.letter, l.lineH, l.align].join('\u0001');
+    if (l._lk === key && l._lay) return l._lay;
+    const c = measureCtx();
+    c.font = textFont(l);
+    c.textAlign = l.align || 'left';      /* measureText 会按 textAlign 算 actualBoundingBox，必须和绘制时一致 */
+    try { c.letterSpacing = (l.letter || 0) + 'px'; } catch (e) { }
+    const lines = String(l.text == null ? '' : l.text).split('\n');
+    const lh = Math.max(1, l.size || 16) * (l.lineH || 1.25);
+    const base = [], ms = [];
+    let asc = 0;
+    for (const s of lines) {
+      const m = c.measureText(s || ' ');
+      ms.push(m);
+      asc = Math.max(asc, m.actualBoundingBoxAscent || (l.size || 16) * 0.8);
+    }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < lines.length; i++) {
+      const m = ms[i], b = asc + i * lh;
+      base.push(b);
+      const lft = -(m.actualBoundingBoxLeft || 0), rgt = (m.actualBoundingBoxRight || 0);
+      const a = m.actualBoundingBoxAscent || 0, d = m.actualBoundingBoxDescent || 0;
+      if (lft < x0) x0 = lft;
+      if (rgt > x1) x1 = rgt;
+      if (b - a < y0) y0 = b - a;
+      if (b + d > y1) y1 = b + d;
+    }
+    if (!isFinite(y0)) { y0 = 0; y1 = l.size || 16; }
+    if (!isFinite(x0) || !isFinite(x1) || x1 - x0 < 1) { const hw = (l.size || 16) * 0.3; x0 = -hw; x1 = hw; }
+    const lay = { lines, base, asc, x0, y0, w: Math.max(1, x1 - x0), h: Math.max(1, y1 - y0) };
+    l._lk = key; l._lay = lay; l.w = lay.w; l.h = lay.h;
+    return lay;
+  }
+  function drawText(g, l) {
+    const lay = textLayout(l);
+    g.save();
+    g.translate(l.x, l.y); g.rotate(l.r); g.scale(l.s, l.s);
+    g.translate(-lay.w / 2 - lay.x0, -lay.h / 2 - lay.y0);
+    g.font = textFont(l); g.textAlign = l.align || 'left'; g.textBaseline = 'alphabetic';
+    g.fillStyle = l.color || '#111111';
+    try { g.letterSpacing = (l.letter || 0) + 'px'; } catch (e) { }
+    for (let i = 0; i < lay.lines.length; i++) g.fillText(lay.lines[i], 0, lay.base[i]);
+    g.restore();
+  }
+  function addText() {
+    act(() => {
+      const bg = String(B.bg || '');
+      let dark = false;
+      if (/^#[0-9a-f]{6}$/i.test(bg)) { const n = parseInt(bg.slice(1), 16); dark = ((n >> 16 & 255) * 299 + (n >> 8 & 255) * 587 + (n & 255) * 114) / 1000 < 128; }
+      const l = { id: B.seq++, kind: 'text', name: t('bdText'), text: t('bdTxtNew'), font: 'sans', size: 64,
+        weight: 400, italic: false, color: dark ? '#ffffff' : '#111111', align: 'center', lineH: 1.25, letter: 0,
+        x: B.W / 2, y: B.H / 2, s: 1, r: 0 };
+      textLayout(l);
+      B.layers.push(l); B.sel = l.id; B.multi = new Set([l.id]);
+      draw(); tools();
+    });
+    const ta = $('#bdTxtBody'); if (ta) { ta.focus(); ta.select(); }
+  }
+  const textSel = () => { const l = sel(); return l && l.kind === 'text' ? l : null; };
+  function syncText() {
+    const p = $('#bdTxtPanel'); if (!p) return;
+    const l = textSel();
+    p.classList.toggle('on', !!l);
+    if (!l) return;
+    const set = (id, v) => { const e = $('#' + id); if (e && document.activeElement !== e) e.value = v; };
+    set('bdTxtBody', l.text == null ? '' : l.text);
+    set('bdTxtFont', l.font || 'sans');
+    set('bdTxtSize', Math.round(l.size || 64));
+    set('bdTxtLH', l.lineH || 1.25);
+    set('bdTxtLS', l.letter || 0);
+    set('bdTxtCol', /^#[0-9a-f]{6}$/i.test(l.color || '') ? l.color : '#111111');
+    set('bdTxtAlign', l.align || 'left');
+    p.querySelectorAll('[data-tf]').forEach(b => b.classList.toggle('on', b.dataset.tf === 'b' ? (l.weight || 400) >= 600 : !!l.italic));
+  }
+  function bindTextPanel() {
+    const p = $('#bdTxtPanel'); if (!p) return;
+    const upd = (fn) => { const l = textSel(); if (!l) return; act(() => { fn(l); textLayout(l); draw(); }, 'txt'); };
+    p.oninput = (e) => {
+      const k = e.target.dataset && e.target.dataset.tp; if (!k) return;
+      const v = e.target.value;
+      if (k === 'text') upd(l => { l.text = v; });
+      else if (k === 'font') upd(l => { l.font = v; });
+      else if (k === 'size') upd(l => { l.size = clamp(+v || 16, 4, 2000); });
+      else if (k === 'lh') upd(l => { l.lineH = clamp(+v || 1.25, 0.5, 4); });
+      else if (k === 'ls') upd(l => { l.letter = clamp(+v || 0, -100, 400); });
+      else if (k === 'color') upd(l => { l.color = v; });
+      else if (k === 'align') upd(l => { l.align = v; });
+    };
+    p.onclick = (e) => {
+      const b = e.target.closest('[data-tf]'); if (!b) return;
+      const l = textSel(); if (!l) return;
+      act(() => {
+        if (b.dataset.tf === 'b') l.weight = (l.weight || 400) >= 600 ? 400 : 700;
+        else l.italic = !l.italic;
+        textLayout(l); draw(); tools();
+      }, 'txt');
+    };
+  }
+  function onDblClick(e) {
+    const [sx, sy] = pos(e), d = toDoc(sx, sy);
+    const l = hitLayer(d, false);
+    if (!l || l.kind !== 'text') return;
+    B.sel = l.id; B.multi = new Set([l.id]); draw(); tools();
+    const ta = $('#bdTxtBody'); if (ta) { ta.focus(); ta.select(); }
+  }
+
   /* ───────── 图层 ───────── */
   function addLayer(im, name, at, isFile) { act(() => addLayer0(im, name, at, isFile)); }
   function addLayer0(im, name, at, isFile) {
@@ -152,7 +325,7 @@ const Board = (() => {
       else { const n = B.layers.length % 6; cx += n * 16; cy += n * 16; }
     }
     const l = { id: B.seq++, name, img: im, w, h, x: cx, y: cy, s, r: 0 };
-    B.layers.push(l); B.sel = l.id; draw(); tools();
+    B.layers.push(l); B.sel = l.id; B.multi.clear(); B.multi.add(l.id); draw(); tools();
   }
   function del() {
     const arr = sels(); if (!arr.length) return;
@@ -207,6 +380,12 @@ const Board = (() => {
     const em = $('#bdEmpty'); if (em) em.style.display = B.layers.length ? 'none' : '';
     const n = B.multi.size; const sn = $('#bdSelN'); if (sn) sn.textContent = n > 1 ? t('bdSelN', { n }) : '';
     const dc = $('#bdDel'); if (dc) dc.textContent = n > 1 ? t('bdDeleteSel', { n }) : t('bdDelete');
+    /* 对齐控件：没选中就不能点；「选中元素」基准要至少两个元素才有意义 */
+    const cnt = sels().length;
+    document.querySelectorAll('#v-board [data-al]').forEach(b => { b.disabled = !on; });
+    const ce = $('#bdCenter'); if (ce) ce.disabled = !on;
+    const bs = $('#bdBase'); if (bs) bs.disabled = cnt < 2;
+    syncText();
   }
 
   /* ───────── 画布大小 / 背景 ───────── */
@@ -247,6 +426,7 @@ const Board = (() => {
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, 20, 20); g.fillStyle = '#d9dce3'; g.fillRect(0, 0, 10, 10); g.fillRect(10, 10, 10, 10); return (chk = c);
   }
   function drawLayer(g, l) {
+    if (l.kind === 'text') return drawText(g, l);
     g.save(); g.translate(l.x, l.y); g.rotate(l.r); g.scale(l.s, l.s); g.drawImage(l.img, -l.w / 2, -l.h / 2); g.restore();
   }
   function corners(l) {                       // 选中框四角 + 旋转柄（屏幕坐标）
@@ -304,11 +484,82 @@ const Board = (() => {
   function hitLayer(d, bboxOnly) {
     const list = bboxOnly ? [sel()].filter(Boolean) : [...B.layers].reverse();
     for (const l of list) {
+      if (l.kind === 'text') textLayout(l);
       const [lx, ly] = local(l, d[0] - l.x, d[1] - l.y);
       if (Math.abs(lx) > l.w / 2 || Math.abs(ly) > l.h / 2) continue;
-      if (bboxOnly || alphaAt(l.img, (lx + l.w / 2) / l.w, (ly + l.h / 2) / l.h) > 12) return l;
+      if (bboxOnly || l.kind === 'text' || alphaAt(l.img, (lx + l.w / 2) / l.w, (ly + l.h / 2) / l.h) > 12) return l;
     }
     return null;
+  }
+  /* ───────── 对齐：按「实际有像素的边缘」算，不是 PNG 图片的矩形 ─────────
+   * 图片层先按 alpha>8 扫出真实墨迹范围（最多采样 1024px，缓存到 im.__box）；
+   * 文字层的紧致外框就是 textLayout 算出来的 w/h。
+   * 旋转 / 缩放之后取四个角的世界坐标 AABB。 */
+  function alphaBox(im) {
+    if (im.__box) return im.__box;
+    const W = im.naturalWidth || im.width, H = im.naturalHeight || im.height;
+    const k = Math.min(1, 1024 / Math.max(W, H));
+    const cw = Math.max(1, Math.round(W * k)), ch = Math.max(1, Math.round(H * k));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(im, 0, 0, cw, ch);
+    let x0 = cw, y0 = ch, x1 = -1, y1 = -1;
+    try {
+      const d = g.getImageData(0, 0, cw, ch).data;
+      for (let y = 0; y < ch; y++) {
+        const row = y * cw * 4;
+        for (let x = 0; x < cw; x++) {
+          if (d[row + x * 4 + 3] > 8) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+        }
+      }
+    } catch (e) { /* 读不到像素就退回整张图 */ }
+    if (x1 < 0) { x0 = 0; y0 = 0; x1 = cw - 1; y1 = ch - 1; }
+    return (im.__box = { x: x0 / k, y: y0 / k, w: (x1 - x0 + 1) / k, h: (y1 - y0 + 1) / k });
+  }
+  function inkRect(l) {
+    if (l.kind === 'text') { textLayout(l); return { x0: -l.w / 2, y0: -l.h / 2, x1: l.w / 2, y1: l.h / 2 }; }
+    const b = alphaBox(l.img);
+    return { x0: b.x - l.w / 2, y0: b.y - l.h / 2, x1: b.x + b.w - l.w / 2, y1: b.y + b.h - l.h / 2 };
+  }
+  function worldBox(l) {
+    const r = inkRect(l), c = Math.cos(l.r), s = Math.sin(l.r);
+    const pts = [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]]
+      .map(([x, y]) => [l.x + (x * c - y * s) * l.s, l.y + (x * s + y * c) * l.s]);
+    return { x0: Math.min(...pts.map(p => p[0])), y0: Math.min(...pts.map(p => p[1])),
+      x1: Math.max(...pts.map(p => p[0])), y1: Math.max(...pts.map(p => p[1])) };
+  }
+  function unionBox(arr) {
+    const bs = arr.map(worldBox);
+    return { x0: Math.min(...bs.map(b => b.x0)), y0: Math.min(...bs.map(b => b.y0)),
+      x1: Math.max(...bs.map(b => b.x1)), y1: Math.max(...bs.map(b => b.y1)) };
+  }
+  function alignTo(mode) {
+    const arr = sels(); if (!arr.length) { toast(t('bdAlignOne')); return; }
+    const baseSel = $('#bdBase') && $('#bdBase').value === 'sel' && arr.length > 1;
+    const tb = baseSel ? unionBox(arr) : { x0: 0, y0: 0, x1: B.W, y1: B.H };
+    act(() => {
+      for (const l of arr) {
+        const b = worldBox(l);
+        let dx = 0, dy = 0;
+        if (mode === 'l') dx = tb.x0 - b.x0;
+        else if (mode === 'r') dx = tb.x1 - b.x1;
+        else if (mode === 'cx') dx = (tb.x0 + tb.x1) / 2 - (b.x0 + b.x1) / 2;
+        else if (mode === 't') dy = tb.y0 - b.y0;
+        else if (mode === 'b') dy = tb.y1 - b.y1;
+        else if (mode === 'cy') dy = (tb.y0 + tb.y1) / 2 - (b.y0 + b.y1) / 2;
+        l.x += dx; l.y += dy;
+      }
+      draw(); tools();
+    }, 'align');
+  }
+  function centerCanvas() {
+    const arr = sels(); if (!arr.length) { toast(t('bdAlignOne')); return; }
+    const u = unionBox(arr);
+    act(() => {
+      const dx = B.W / 2 - (u.x0 + u.x1) / 2, dy = B.H / 2 - (u.y0 + u.y1) / 2;
+      for (const l of arr) { l.x += dx; l.y += dy; }
+      draw(); tools();
+    });
   }
   function hitHandle(sx, sy) {
     const l = sel(); if (!l) return null; const { cs, rot } = corners(l);
@@ -434,6 +685,7 @@ const Board = (() => {
     if (!B.mounted || B.lang !== I18N.lang) mount(); else loadMat();
     requestAnimationFrame(() => { if (!B.fitted) fit(); else draw(); tools(); });
   }
-  function select(id) { B.sel = id; draw(); tools(); }
-  return { enter, state: B, draw, addLayer, addFile, setSize, fit, select, undo, redo, dup, zoomSel, imgFromBlob, addMat };
+  function select(id) { B.sel = id; B.multi.clear(); if (id != null) B.multi.add(id); draw(); tools(); }
+  return { enter, state: B, draw, addLayer, addFile, setSize, fit, select, undo, redo, dup, zoomSel, imgFromBlob, addMat,
+    addText, alignTo, centerCanvas, worldBox, alphaBox, renderDoc };
 })();

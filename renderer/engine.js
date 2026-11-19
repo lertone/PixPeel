@@ -4,6 +4,27 @@ const _yield=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=
 const SEG={src:null,layers:[],sel:new Set(),hov:null,tool:'pick',mode:'new',tol:40,merge:6,minA:.15,how:'auto',K:6,fromClip:null,lasso:null,ai:null,busy:false,seq:1,
   tiles:[],cur:0,wall:{w:0,h:0},gap:18,tileH:520};
 
+/* ── 清空一次导入的全部状态 ──
+ * 每次重新导入 / 截图 / 清空画布都要先走这里：
+ *   ① 释放每块图的 canvas 和像素数组（不释放的话反复导入内存只涨不降，越来越卡）
+ *   ② 清掉图层的蒙版 / 缩略图缓存
+ *   ③ 序号归 1（以前只增不减，所以第二次导入会从「元素 7」接着数）
+ * AI worker 不销毁：模型下过一次就留着，只把「已嵌入的图」标记清掉，
+ * 否则下次点选会用上一张图的 embedding。 */
+function segReset(){
+  for(const tl of SEG.tiles){
+    const s=tl&&tl.src;
+    if(!s)continue;
+    if(s.cv){try{s.cv.width=0;s.cv.height=0}catch(e){}}
+    s.cv=null;s.data=null;
+  }
+  for(const L of SEG.layers){L.m=null;L.mp=null;L.tint=null;L._cuts=null;}
+  SEG.src=null;SEG.layers=[];SEG.tiles=[];SEG.cur=0;SEG.wall={w:0,h:0};
+  SEG.sel.clear();SEG.hov=null;SEG.lasso=null;SEG.fromClip=null;SEG.name='';
+  SEG.seq=1;
+  if(SEG.ai){SEG.ai.embedded=false;SEG.ai.raw=null;SEG.ai.gen=(SEG.ai.gen||0)+1;}
+}
+
 /* ── 多图拼贴墙：批量导入的图统一缩放、均分网格铺在一张大画布上 ── */
 function segAddTile(src,name){
   const t={id:uid(),name:name||t('image'),src,w:src.w,h:src.h,x:0,y:0,sc:1};
@@ -288,6 +309,8 @@ function segFillCracks(m, w, h, maxGap) {
 /** 补过缺口的蒙版（结果缓存在图层上，避免每次重绘都算） */
 function segPolishMask(L) {
   if (L.mp) return L.mp;
+  /* 蒙版变了，之前切好的透明底图也作废 */
+  L._cuts = null;
   if (!segEdgeOn() || !L.m) return (L.mp = L.m);
   /* 用户手动画/加减过的图层：蒙版就是他亲手定的，别补缝、别填洞。
      否则「从当前减去」抠掉的内部细节会被 segFillHoles 原样填回来，看起来像没生效。 */
@@ -299,12 +322,19 @@ function segPolishMask(L) {
   m = segFillHoles(m, L.bw, L.bh);
   return (L.mp = m);
 }
-/* 取出一个图层的透明底图 */
+/* 取出一个图层的透明底图。
+ * 结果按 pad 缓存在 L._cuts 上：元素列表、预览面板、导出会反复要同一张图，
+ * 以前每次都重建 canvas + 全像素扫描，多图批量导入时这是最大的一笔开销。 */
 function segCut(L,pad){
-  const tl=SEG.tiles[L.tile]||segCurTile(),src=(tl&&tl.src)||SEG.src;
-  const {w,data}=src,p=pad||1,W=L.bw+p*2,H=L.bh+p*2;
-  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),id=g.createImageData(W,H);
+  const p=pad||1;
+  /* 先拿蒙版：重新算蒙版时 segPolishMask 会把 L._cuts 作废，
+     所以缓存对象必须在那之后再建，否则写进去的是个没人引用的孤儿对象。 */
   const M=segPolishMask(L);
+  const cache=L._cuts||(L._cuts={});
+  if(cache[p])return cache[p];
+  const tl=SEG.tiles[L.tile]||segCurTile(),src=(tl&&tl.src)||SEG.src;
+  const {w,data}=src,W=L.bw+p*2,H=L.bh+p*2;
+  const c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d'),id=g.createImageData(W,H);
   const mv=(x,y)=>(x<0||y<0||x>=L.bw||y>=L.bh)?0:M[y*L.bw+x];
   for(let y=0;y<H;y++)for(let x=0;x<W;x++){
     const mx=x-p,my=y-p;let s=0;
@@ -316,7 +346,7 @@ function segCut(L,pad){
   }
   g.putImageData(id,0,0);
   if(segEdgeOn())segSmoothEdge(g,W,H);
-  return{cv:c,px:L.bx-p,py:L.by-p};
+  return(cache[p]={cv:c,px:L.bx-p,py:L.by-p});
 }
 /* ② 润化边缘：把 alpha 通道里 0~255 之间的过渡带再抹平一点，去掉台阶锯齿 */
 function segSmoothEdge(g,W,H){
@@ -447,7 +477,7 @@ function segAIWorker(){
      const o=new Uint8Array(W*H),off=bi*W*H;for(let i=0;i<W*H;i++)o[i]=t.data[off+i]?1:0;postMessage({t:'mask',m:o,W,H},[o.buffer])}
   }catch(err){postMessage({t:'err',msg:String(err&&err.message||err)})}}`;
   const url=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
-  const w=new Worker(url);SEG.ai={w,ready:false,embedded:false,url};return SEG.ai;
+  const w=new Worker(url);SEG.ai={w,ready:false,embedded:false,url,gen:0};return SEG.ai;
 }
 function segAIcall(msg,want,transfer){
   const A=segAIWorker();
@@ -462,12 +492,17 @@ function segAIcall(msg,want,transfer){
 }
 async function segAIClick(x,y){
   const A=segAIWorker();
+  /* 导入新图时 segReset 会把 gen 加一：这期间还在跑的 embedding / 点击结果都作废，
+     否则会用上一张图的 embedding 去算新图的蒙版（同尺寸时连尺寸检查都拦不住）。 */
+  const gen=A.gen||0, stale=()=>A.gen!==gen;
   try{
     if(!A.ready){segBusy(aiCached()?t('aiSee'):t('aiLoad'));await segAIcall({t:'init'},'ready');A.ready=true;aiMarkReady()}
-    if(!A.embedded){segBusy(t('aiSee'));const bl=await new Promise(r=>SEG.src.cv.toBlob(r,'image/png'));await segAIcall({t:'embed',blob:bl},'embedded');A.embedded=true}
+    if(stale())return;
+    if(!A.embedded){segBusy(t('aiSee'));const bl=await new Promise(r=>SEG.src.cv.toBlob(r,'image/png'));await segAIcall({t:'embed',blob:bl},'embedded');if(stale())return;A.embedded=true}
     segBusy(t('aiFind'));
     const d=await segAIcall({t:'click',pts:[[x,y]]},'mask');
     segBusy('');
+    if(stale())return;
     const {w,h}=SEG.src;if(d.W!==w||d.H!==h){toast(t('aiSize'));return}
     segApply(d.m);segRender();
   }catch(e){

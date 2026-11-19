@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0
+
+- **New on the Board: text.** A “Text” button adds a text layer. Pick from system fonts (Hei / Song / Kai / serif / mono — no font files are bundled) and set size, line height, letter spacing, colour, bold, italic and left/centre/right alignment. Double-click text on the canvas to select it and edit it in the panel. Text is drawn as vectors from its parameters, so it stays sharp when you zoom in and on export (measured: the same text on a 2× canvas has exactly 2× the ink, and the anti-aliasing band is 2 px).
+- **New on the Board: alignment.** A bar under the canvas has left / centre / right / top / middle / bottom, plus a “Centre” button that puts the selection in the middle of the canvas. The reference is either the canvas or the selected elements — with the latter, several elements align to each other.
+- **Alignment uses the actual pixel edges, not the PNG's transparent box.** Image layers are scanned for the real ink bounds (sampled up to 1024 px and cached); text layers use `measureText`'s tight box; after rotation/scaling the four corners are transformed into world space. Measured: a 200×200 image whose content only occupies 60×40 in the bottom-right corner lands exactly on 0 / 1080 / 0 / 1080 / 540 / 540 for left / right / top / bottom / centre-h / centre-v (0 px error); text ink matches the computed box to 0.41 px.
+- **Fixed: importing or capturing repeatedly got slower and slower.** Every new image used to leave the previous batch's canvases and pixel arrays in memory, layers piled up, and the element list was rebuilt from scratch on every click. Re-importing now clears the previous batch first (canvases, pixel data and thumbnail caches are released); the element list only updates checkboxes and names when the set of layers is unchanged, and lasso repaints are coalesced to one per frame.
+  - Measured (900×650, 8 elements per image): re-importing one image 104 ms (old: 443 ms); redrawing the element list 20× 3 ms (old: 1057 ms); after five re-imports, 20 redraws 2 ms (old: 2427–7010 ms); JS heap steady at 13 MB (old: 21 MB and rising with every import).
+- **Fixed: element numbering continued from the previous batch** after a re-import (the second batch started at “Element 9”). Every re-import / capture / paste / cleared canvas now starts again at 1.
+- **Fixed: toggling “Edge smoothing” did nothing**, and after changing “Gap repair width” the thumbnails could stay stale. Both settings now invalidate the repaired mask *and* the cut-out bitmap and repaint immediately (measured: the thumbnail hash changes after each toggle; going from gap 0 to 6 raises the ink pixel count from 19272 to 19476).
+- Also fixed the cut-out bitmap cache writing into an orphaned object, i.e. not caching at all (element-list thumbnails are now about 20× faster because of it).
+
 ## 1.0.10
 
 - **Donation links.** Settings now has a “Support PixPeel” section: [Ko-fi](https://ko-fi.com/lertone) for international supporters (credit card, PayPal, Apple Pay, Google Pay) and [Afdian](https://ifdian.net/a/lt20061229) for mainland China (WeChat Pay, Alipay). Entirely optional — nothing is locked behind it.

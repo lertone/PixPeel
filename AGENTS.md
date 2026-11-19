@@ -38,7 +38,7 @@ server.js        本机联动服务，只监听 127.0.0.1:17652
 renderer/
   app.js         拆元素页（主界面）、拼贴墙、元素列表
   engine.js      分割引擎：颜色/聚类分割、连通域、形态学、边缘修补
-  board.js       画板（位图拼图）
+  board.js       画板（位图拼图 + 文字层 + 对齐/居中）
   svg.js         SVG 库 + SVG 画布（矢量分层编辑）
   extras.js      设置页、高清修复、AI 模型面板等
   i18n.js        中英文案
@@ -63,6 +63,23 @@ docs/            CHANGELOG（中英）、PRIVACY、LINK-PROTOCOL、RELEASING
 - 画布坐标换算：`segWallPt(e)` → 墙坐标 → `segTileAt()` 找块 → 块内像素坐标；点到别的块会自动 `setCurTile()` 切过去
 - **批量导入必须串行处理**（`for...await`），否则多图并发会互抢 `SEG.src`，切出来的元素取错源图
 
+### 重新导入要「清干净」（v1.1.0 起）
+
+每次重新导入 / 截图 / 粘贴 / 清空画布，**入口第一件事都是 `segReset()`**（engine.js）：
+
+- 释放上一批每块图的 `src.cv`（宽高置 0）和 `src.data`，否则反复导入内存只涨不降、越来越卡
+- 清掉图层的 `m` / `mp` / `tint` / `_cuts` 缓存
+- `SEG.seq = 1`——**元素序号每次从 1 开始**（以前只增不减，第二次导入会从「元素 9」接着数）
+- AI worker 不销毁（模型下过一次就留着），只把 `SEG.ai.embedded = false`、`raw = null`，否则下次点选会用上一张图的 embedding
+
+配套的两条性能规则：
+
+- **`runBatch()`**：批量导入期间 `BATCH > 0`，`openImage` 不在每张图后重建界面，批次结束才 `buildEdit()` + `segRender()` + `segList()` 一次
+- **`segList()` 按图层 id 集合复用 DOM**：`el.dataset.sig` 没变就只更新 class / checkbox / 名字。点一下元素就重建几十张卡片是选取卡顿的主因
+- 套索 / 悬停的重绘走 `segRenderSoon()`（rAF 合并），别再直接 `segRender()`
+
+`segCut(L, pad)` 的结果按 pad 缓存在 `L._cuts`。**缓存对象必须在 `segPolishMask(L)` 之后再建**——重算蒙版时 `segPolishMask` 会把 `L._cuts` 置空，先建对象会把结果写进没人引用的孤儿对象，等于没缓存（v1.1.0 开发时踩过，元素列表因此慢 20 倍）。
+
 ### 分割是一连通块一图层
 
 `segAuto()` 用 `segCC()` 做连通域标记，**一个连通块 = 一个图层**。所以边缘修补只在单个元素内部进行，**不同元素之间永远不会被粘连**（验证时别用「两个方块放同一张蒙版」来测，那个场景不成立）。
@@ -78,7 +95,8 @@ docs/            CHANGELOG（中英）、PRIVACY、LINK-PROTOCOL、RELEASING
 4. `segSmoothEdge(g,W,H)` → alpha 通道 3×3 邻域平均（0.65 原值 + 0.35 均值），把 0/255 硬边变成渐变过渡带
 
 设置项：`edgeSmooth`（总开关）、`edgeGap`（补缝宽度 0/2/3/4/5/6，默认 4）。
-**改 `edgeGap` 后必须 `SEG.layers.forEach(L => L.mp = null)`**，否则蒙版缓存不失效，改了没反应。
+**改 `edgeSmooth` / `edgeGap` 后必须同时作废 `L.mp`（补过边的蒙版）和 `L._cuts`（切好的透明底图）**：
+`SEG.layers.forEach(L => { L.mp = null; L._cuts = null; })`，否则缓存不失效，改了没反应（v1.1.0 之前 `edgeSmooth` 就是这个 bug）。
 
 补缝宽度和「把两个挨得很近的元素连成一个」在几何上是同一件事，无法两全——所以宽度做成可调，让用户取舍。
 
@@ -92,6 +110,26 @@ docs/            CHANGELOG（中英）、PRIVACY、LINK-PROTOCOL、RELEASING
 `buildOut()` 里对**每张有选中元素的图**各算一份背景层（v1.0.6 起）。之前只算当前那张，
 批量导入时其它图的剩余像素被静默丢弃。批量时文件名是 `背景 - <原图名>.png`，
 否则几张「背景」会退化成 `背景.png` / `背景_2.png`。
+
+### 画板：文字层与对齐（v1.1.0 起）
+
+文字层是 `{ kind:'text', text, font, size, weight, italic, color, align, lineH, letter, x, y, s, r }`，
+**不存位图**：只存参数，`drawText()` 每次按当前缩放矢量绘制，放大和导出都不糊。图片层没有 `kind`。
+
+- `textLayout(l)` 用共享的测量 canvas 算紧致外框（`w`/`h` 写回图层，`_lk`/`_lay` 缓存，key 是全部排版参数）
+- **`measureText` 的 `actualBoundingBox*` 会按 `c.textAlign` 变化**，所以测量前必须设 `c.textAlign = l.align`，和 `fillText` 时保持一致，否则外框和实际墨迹对不上
+- `x0` / `x1` 初值必须是 `±Infinity`：左对齐时 `actualBoundingBoxLeft` 是负数（-5），从 0 开始取最小会留下 5px 空白
+- 字体只用系统字体栈（`FONTS` / `FONTMAP`），不打包字体文件
+
+对齐按**实际有像素的边缘**算，不是 PNG 的图片框：
+
+- `alphaBox(im)`：alpha > 8 扫描真实墨迹范围，最多采样 1024px，结果缓存在 `im.__box`
+- `inkRect(l)`：图片用 `alphaBox`，文字用 `textLayout` 的 `w/h`
+- `worldBox(l)`：墨迹矩形四角按 `l.s` / `l.r` 变换后取 AABB（旋转时含空角，属正常）
+- `alignTo(mode)`：基准 `#bdBase` 选「画布」或「选中元素」（`unionBox`）；`centerCanvas()` 始终相对画布
+- 实测：不对称图（内容只占 200×200 的右下 60×40）六个方向误差 0px；文字墨迹与 `worldBox` 误差 0.41px
+
+`snapB()` 的 `k` 里要带上文字参数，否则改字号 / 颜色不会进撤回历史。
 
 ### 联动协议
 

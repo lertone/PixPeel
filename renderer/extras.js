@@ -340,7 +340,14 @@ async function hdDecorate() {
     sets[Math.min(1, sets.length - 1)].after(box);
     $('#sHD').onchange = async (e) => { const r = await api.setSettings({ autoHD: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.autoHD = e.target.checked; };
     const se = $('#sEdge');
-    if (se) se.onchange = async (e) => { const r = await api.setSettings({ edgeSmooth: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.edgeSmooth = e.target.checked; if (r && r.settings) applyAll(); };
+    if (se) se.onchange = async (e) => {
+      const r = await api.setSettings({ edgeSmooth: e.target.checked });
+      if (r && r.settings) CFG = r.settings; else CFG.edgeSmooth = e.target.checked;
+      if (r && r.settings) applyAll();
+      /* 开关变了，补过边的蒙版和切好的透明底图都要作废 */
+      SEG.layers.forEach(L => { L.mp = null; L._cuts = null; });
+      segList(); segRender();
+    };
     const sg = $('#sGap');
     if (sg) {
       sg.value = String((CFG && CFG.edgeGap != null) ? CFG.edgeGap : 4);
@@ -348,8 +355,8 @@ async function hdDecorate() {
         const v = +e.target.value;
         const r = await api.setSettings({ edgeGap: v });
         if (r && r.settings) CFG = r.settings; else CFG.edgeGap = v;
-        /* 强度变了，之前算好的蒙版要作废重算 */
-        SEG.layers.forEach(L => { L.mp = null; });
+        /* 强度变了，之前算好的蒙版和透明底图都要作废重算 */
+        SEG.layers.forEach(L => { L.mp = null; L._cuts = null; });
         segList(); segRender();
       };
     }
