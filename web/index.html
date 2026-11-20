@@ -17,6 +17,8 @@
     var t = localStorage.getItem('pp_web_theme');
     if (!t && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
     if (t) document.documentElement.dataset.theme = t;
+    var l = localStorage.getItem('pp_web_lang') || ((navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
+    document.documentElement.lang = l === 'en' ? 'en' : 'zh-CN';
   } catch (e) { }
 </script>
 <link rel="stylesheet" href="css/site.css">
@@ -41,6 +43,7 @@
     <a class="ghostBtn hideSm" href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer" aria-label="GitHub">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6a9.4 9.4 0 0 0-3 18.3c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.2-3.4-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.6s.8-.3 2.7 1a9.3 9.3 0 0 1 4.9 0c1.9-1.3 2.7-1 2.7-1 .6 1.3.2 2.4.1 2.6a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5A9.4 9.4 0 0 0 12 2.6z" fill="currentColor"/></svg>
     </a>
+    <button class="langBtn" id="langBtn" type="button" data-no-i18n aria-label="切换语言" title="Switch to English">EN</button>
     <button class="iconBtn" id="themeBtn" type="button" aria-label="切换深色 / 浅色" title="切换深色 / 浅色">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     </button>
@@ -59,7 +62,7 @@
     <div class="hero">
       <div class="heroCopy">
         <p class="kicker"><i></i> 网页版 · 免安装 · 图片不上传</p>
-        <h1>把图<span class="mark">剥开</span><br>一个个拿走。</h1>
+        <h1 data-i18n-block="heroTitle">把图<span class="mark">剥开</span><br>一个个拿走。</h1>
         <p class="lede">导入一张截图，PixPeel 会沿着边缘把按钮、图标、文字和贴纸拆下来，存成透明底 PNG。然后去元素库收好，或者直接拖进画板拼一张新的。</p>
         <div class="heroCtas">
           <a class="btn primary big" href="#extract">开始拆元素
@@ -78,13 +81,13 @@
         <div class="artGlow"></div>
         <div class="appFrame">
           <div class="appBar"><i></i><i></i><i></i><span>PixPeel — 拆元素</span><b>本地</b></div>
-          <img src="assets/app.png" alt="PixPeel 桌面版界面：一张 MISTVALE 海报被拆成多个元素" loading="eager">
+          <img src="assets/app.png" data-en-src="assets/app-en.png" alt="PixPeel 桌面版界面：一张 MISTVALE 海报被拆成多个元素" data-en-alt="PixPeel desktop interface: a MISTVALE poster split into elements" loading="eager">
           <span class="scanLine"></span>
         </div>
-        <figure class="floatSticker s1"><img src="assets/el-badge.png" alt="拆出的 NEW 圆形徽章"><figcaption>徽章 · 198×198</figcaption></figure>
-        <figure class="floatSticker s2"><img src="assets/el-btn.png" alt="拆出的开始游戏按钮"><figcaption>按钮 · 272×90</figcaption></figure>
-        <figure class="floatSticker s3"><img src="assets/el-card.png" alt="拆出的说明文字"><figcaption>文字 · 一字不糊</figcaption></figure>
-        <figure class="floatSticker s4"><img src="assets/el-avatar.png" alt="拆出的圆形色块"><figcaption>图形 · 透明底</figcaption></figure>
+        <figure class="floatSticker s1"><img src="assets/el-badge.png" alt="拆出的 NEW 圆形徽章" data-en-alt="Extracted NEW badge"><figcaption>徽章 · 198×198</figcaption></figure>
+        <figure class="floatSticker s2"><img src="assets/el-btn.png" data-en-src="assets/el-btn-en.png" alt="拆出的开始游戏按钮" data-en-alt="Extracted Start Game button"><figcaption>按钮 · 272×90</figcaption></figure>
+        <figure class="floatSticker s3"><img src="assets/el-card.png" data-en-src="assets/el-card-en.png" alt="拆出的说明文字" data-en-alt="Extracted caption text"><figcaption>文字 · 一字不糊</figcaption></figure>
+        <figure class="floatSticker s4"><img src="assets/el-avatar.png" alt="拆出的圆形色块" data-en-alt="Extracted shape"><figcaption>图形 · 透明底</figcaption></figure>
         <div class="floatChip"><span class="dot"></span> 正在本地拆解 <b id="heroCount">7</b> 个元素</div>
       </div>
     </div>
@@ -105,7 +108,7 @@
         <article class="stepCard">
           <span class="stepNo">01</span>
           <div class="stepArt dropArt">
-            <img src="assets/app.png" alt="">
+            <img src="assets/app.png" data-en-src="assets/app-en.png" alt="">
             <span class="dashBox"></span>
             <span class="dropTag">拖进来 / Ctrl+V</span>
           </div>
@@ -115,7 +118,7 @@
         <article class="stepCard">
           <span class="stepNo">02</span>
           <div class="stepArt splitArt">
-            <img src="assets/app.png" alt="">
+            <img src="assets/app.png" data-en-src="assets/app-en.png" alt="">
             <span class="dashBox b2"></span>
             <span class="splitTag">自动拆成 7 个</span>
           </div>
@@ -125,7 +128,7 @@
         <article class="stepCard">
           <span class="stepNo">03</span>
           <div class="stepArt saveArt">
-            <div class="miniStickers"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
+            <div class="miniStickers"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" data-en-src="assets/el-btn-en.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
             <span class="saveTag">→ 元素库</span>
           </div>
           <h3>收好，再拼</h3>
@@ -136,8 +139,10 @@
 
     <section class="section bento">
       <div class="bentoHead">
-        <p class="eyebrow">NOT JUST A SPLITTER</p>
-        <h2>拆完之后，还有一个完整的<br>网页工作台。</h2>
+        <div>
+          <p class="eyebrow">NOT JUST A SPLITTER</p>
+          <h2>拆完之后，还有一个完整的<br>网页工作台。</h2>
+        </div>
         <p class="secNote">三个区域都在顶部，随时切换。登录后，元素库和画板会暂存在这台设备。</p>
       </div>
       <div class="bentoGrid">
@@ -150,7 +155,7 @@
           </div>
           <div class="bcArt">
             <div class="elRow">
-              <img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-card.png" alt=""><img src="assets/el-avatar.png" alt="">
+              <img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" data-en-src="assets/el-btn-en.png" alt=""><img src="assets/el-card.png" data-en-src="assets/el-card-en.png" alt=""><img src="assets/el-avatar.png" alt="">
             </div>
             <div class="paramPills"><span>背景容差 40</span><span>合并 6px</span><span>抗锯齿 开</span></div>
           </div>
@@ -161,7 +166,7 @@
           <h3>拆下来的，收进库</h3>
           <p>登录后按账号暂存，刷新不丢。多选、下载、删除，一键送进画板。</p>
           <div class="stickerGrid" aria-hidden="true">
-            <span><img src="assets/el-badge.png" alt=""></span><span><img src="assets/el-btn.png" alt=""></span><span><img src="assets/el-avatar.png" alt=""></span><span><img src="assets/el-card.png" alt=""></span>
+            <span><img src="assets/el-badge.png" alt=""></span><span><img src="assets/el-btn.png" data-en-src="assets/el-btn-en.png" alt=""></span><span><img src="assets/el-avatar.png" alt=""></span><span><img src="assets/el-card.png" data-en-src="assets/el-card-en.png" alt=""></span>
           </div>
           <a class="textLink" href="#library">打开元素库 <span>→</span></a>
         </article>
@@ -211,7 +216,8 @@
       </div>
       <div class="videoGrid">
         <div class="videoMain">
-          <iframe src="https://player.bilibili.com/player.html?bvid=BV1xpsv6rEKJ&page=1&high_quality=1&danmaku=0&autoplay=0" title="PixPeel 我做的抠图神器 — Bilibili" loading="lazy" allowfullscreen scrolling="no"></iframe>
+          <iframe class="videoFrame zhOnly" src="https://player.bilibili.com/player.html?bvid=BV1xpsv6rEKJ&page=1&high_quality=1&danmaku=0&autoplay=0" title="PixPeel 我做的抠图神器 — Bilibili" loading="lazy" allowfullscreen scrolling="no"></iframe>
+          <iframe class="videoFrame enOnly" src="https://www.youtube-nocookie.com/embed/6ow4Iso6wtw" title="PixPeel demo — YouTube" loading="lazy" allowfullscreen></iframe>
         </div>
         <div class="videoSide">
           <a class="videoCard xCard" href="https://x.com/lertonezxy9/status/2122906141684609512" target="_blank" rel="noreferrer">
@@ -441,7 +447,7 @@
       </div>
       <div class="libGrid" id="libGrid"></div>
       <div class="libEmpty" id="libEmpty">
-        <div class="libEmptyArt"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
+        <div class="libEmptyArt"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" data-en-src="assets/el-btn-en.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
         <b>元素库还是空的</b>
         <p>去拆一张图，或者把图片直接拖到这里存成元素。</p>
         <button class="btn primary" id="libGoExtract" type="button">去拆元素</button>
@@ -532,7 +538,7 @@
       <div><b>产品</b><a href="#extract">拆元素</a><a href="#library">元素库</a><a href="#board">画板</a></div>
       <div><b>生态</b><a href="https://github.com/lertone/PixPeel/releases/latest" target="_blank" rel="noreferrer">桌面版下载</a><a href="https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html" target="_blank" rel="noreferrer">小剪动画</a><a href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer">GitHub</a></div>
       <div><b>视频</b><a href="https://x.com/lertonezxy9/status/2122906141684609512" target="_blank" rel="noreferrer">X / Twitter</a><a href="https://www.bilibili.com/video/BV1xpsv6rEKJ/" target="_blank" rel="noreferrer">Bilibili</a><a href="https://v.douyin.com/FKHvotvc4-Q/" target="_blank" rel="noreferrer">抖音</a><a href="https://youtu.be/6ow4Iso6wtw" target="_blank" rel="noreferrer">YouTube</a></div>
-      <div><b>支持</b><a href="https://ko-fi.com/lertone" target="_blank" rel="noreferrer">Ko-fi</a><a href="https://ifdian.net/a/lt20061229" target="_blank" rel="noreferrer">爱发电</a><a href="https://github.com/lertone/PixPeel/blob/main/docs/PRIVACY.zh-CN.md" target="_blank" rel="noreferrer">隐私说明</a></div>
+      <div><b>更多</b><a href="https://github.com/lertone/PixPeel/blob/main/docs/PRIVACY.zh-CN.md" data-en-href="https://github.com/lertone/PixPeel/blob/main/docs/PRIVACY.md" target="_blank" rel="noreferrer">隐私说明</a></div>
     </div>
   </div>
   <div class="footBase">
@@ -637,6 +643,7 @@
 <script src="js/extract.js"></script>
 <script src="js/library.js"></script>
 <script src="js/board.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

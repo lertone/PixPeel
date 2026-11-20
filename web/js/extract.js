@@ -511,6 +511,7 @@
 
   function buildSample() {
     setStatus('正在生成示例…');
+    const en = window.PPI18N && PPI18N.lang() === 'en';
     const w = 1000, h = 660;
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
@@ -520,13 +521,18 @@
     g.font = '700 78px Georgia, "Times New Roman", serif';
     g.fillText('MISTVALE', 86, 160);
     g.fillStyle = '#8a7769';
-    g.font = '20px "Microsoft YaHei", sans-serif';
-    g.fillText('一张截图，拆成能用的素材。', 90, 200);
+    g.font = '20px "Microsoft YaHei", "Segoe UI", sans-serif';
+    g.fillText(en ? 'A screenshot, split into usable pieces.' : '一张截图，拆成能用的素材。', 90, 200);
     g.fillStyle = '#ff5a2a';
     g.beginPath(); g.roundRect(86, 250, 250, 76, 16); g.fill();
     g.fillStyle = '#fff';
-    g.font = '700 30px "Microsoft YaHei", sans-serif';
-    g.fillText('开始游戏', 142, 300);
+    if (en) {
+      g.font = '700 24px "Segoe UI", sans-serif';
+      g.fillText('START GAME', 118, 297);
+    } else {
+      g.font = '700 30px "Microsoft YaHei", sans-serif';
+      g.fillText('开始游戏', 142, 300);
+    }
     g.fillStyle = '#e4f26d';
     g.beginPath(); g.arc(786, 292, 88, 0, Math.PI * 2); g.fill();
     g.strokeStyle = '#1a1410'; g.lineWidth = 10; g.stroke();
@@ -536,11 +542,11 @@
     g.fillStyle = '#fff';
     g.beginPath(); g.roundRect(86, 420, 660, 140, 18); g.fill();
     g.fillStyle = '#1a1410';
-    g.font = '600 25px "Microsoft YaHei", sans-serif';
-    g.fillText('拖进来的元素，直接变成贴纸', 118, 472);
+    g.font = '600 25px "Microsoft YaHei", "Segoe UI", sans-serif';
+    g.fillText(en ? 'Drop elements in, get stickers.' : '拖进来的元素，直接变成贴纸', 118, 472);
     g.fillStyle = '#8a7769';
-    g.font = '18px "Microsoft YaHei", sans-serif';
-    g.fillText('点画面，或用魔棒与 AI 点选', 118, 512);
+    g.font = '18px "Microsoft YaHei", "Segoe UI", sans-serif';
+    g.fillText(en ? 'Click the canvas, or use Wand / AI pick.' : '点画面，或用魔棒与 AI 点选', 118, 512);
     g.fillStyle = '#ffb59b';
     g.beginPath(); g.arc(480, 600, 30, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#52e3bd';
@@ -607,7 +613,7 @@
     for (const l of usable) {
       const blob = await new Promise((res) => l.canvas.toBlob(res, 'image/png'));
       if (!blob) continue;
-      entries.push({ name: '元素 ' + (S.layers.indexOf(l) + 1), blob, w: l.w, h: l.h });
+      entries.push({ name: (window.PPI18N && PPI18N.lang() === 'en' ? 'Element ' : '元素 ') + (S.layers.indexOf(l) + 1), blob, w: l.w, h: l.h });
     }
     const rows = await PPStore.add(uid, entries);
     if (!rows.length) { PPApp.toast('保存失败，可能是浏览器禁止了本机存储'); return; }

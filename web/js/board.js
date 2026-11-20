@@ -518,7 +518,7 @@
         ${l.shape === 'star' ? `<div class="propRow"><span>角数</span><input type="range" data-p="points" min="3" max="20" step="1" value="${l.points || 5}"><b>${l.points || 5}</b></div>` : ''}`;
     }
     box.innerHTML = `<h4>${escapeHtml(l.name || '图层')}</h4>
-      <div class="propRow"><span>透明</span><input type="range" data-p="op" min="0" max="100" step="1" value="${op}"><b>${op}%</b></div>
+      <div class="propRow"><span>不透明度</span><input type="range" data-p="op" min="0" max="100" step="1" value="${op}"><b>${op}%</b></div>
       <div class="propRow"><span>角度</span><input type="range" data-p="rot" min="-180" max="180" step="1" value="${rot}"><b>${rot}°</b></div>
       <div class="propRow"><span>大小</span><input type="range" data-p="scale" min="2" max="400" step="1" value="${sc}"><b>${sc}%</b></div>
       ${extra}

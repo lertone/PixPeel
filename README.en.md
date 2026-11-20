@@ -21,6 +21,7 @@ Open **https://lertone.github.io/PixPeel/** in a browser:
 - **Library**: sign in with a local nickname to keep elements per account; multi-select, download, delete.
 - **Board**: images, text and basic shapes, move / scale / rotate, export PNG, auto-save.
 - Three areas in the top bar, works on phones; images stay in the browser and data lives in IndexedDB, never uploaded.
+- The web app is available in **Chinese and English**; use the language button in the top bar. Your choice is remembered.
 - The desktop app handles system-wide capture, click-pick, batch splitting and HD repair; the web version is for opening anywhere and quickly splitting or composing.
 
 ## Features

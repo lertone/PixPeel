@@ -219,6 +219,7 @@ v1.2.1 修正（这些都是用户实测报过的）：
 - 画板：`board.js` 图层 `kind:'img'|'text'|'shape'`，图片 `blob` 直接存 IndexedDB；自动存档 500ms 防抖；导出按 W×H 重绘。移动端底部抽屉，`body.focusMode` 隐藏全部面板，CSS 在 `max-width:900px` 下要把 `.exShell` 改回单列，否则全屏时舞台会塌成 2px。
 - 必须保留 `[hidden]{display:none!important}`：很多面板有 `display:grid/flex`，否则 `hidden` 属性会被作者样式覆盖（拆元素忙碌遮罩就踩过）。
 - 部署：GitHub Pages 用 `.github/workflows/pages.yml` 上传 `web/`；站点地址写死在 `config.js` 的 `website`，桌面版设置里的「官方网站」通过 `publicSettings().website` 读取，`safeExternal` 会自动把该域名加入白名单。
+- 中英切换在 `web/js/i18n.js`：静态文案 / 属性 / 图片 / 隐私链接按中文原文映射，动态节点用 MutationObserver 兜底；新增界面文案时，把中文原文和英文翻译加进 `DICT`（带变量的加 `PATTERNS`），不要只在 HTML 里写中文。语言存 `localStorage` 的 `pp_web_lang`，默认跟随浏览器语言。
 - 本地测试：`python -m http.server 4180 --directory web`，用 Chrome CDP 或浏览器实测桌面 / 390px 手机；页面不依赖构建，改完刷新即可。
 
 ### 联动协议

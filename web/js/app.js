@@ -29,7 +29,7 @@
     if (!initial && v !== 'home' && prev === 'home') window.scrollTo(0, 0);
     document.querySelectorAll('.view').forEach(el => el.classList.toggle('on', el.dataset.view === (v === 'board' ? 'library' : v)));
     document.querySelectorAll('.tabs a').forEach(a => a.classList.toggle('on', a.dataset.view === (v === 'board' ? 'library' : v)));
-    document.title = 'PixPeel 网页版 — ' + ({ home: '把图剥开，一个个拿走', extract: '拆元素', library: '元素库', board: '画板' }[v] || '');
+    document.title = window.PPI18N ? PPI18N.titleFor(v) : 'PixPeel 网页版 — ' + ({ home: '把图剥开，一个个拿走', extract: '拆元素', library: '元素库', board: '画板' }[v] || '');
     exitFocus(true);
     if (prev === 'board' && v !== 'board') { try { PPBoard.deactivate(); } catch (e) { } }
 
@@ -83,8 +83,9 @@
   /* ── 登录 / 账号 ── */
   function renderUser() {
     const s = session();
+    const en = window.PPI18N && PPI18N.lang() === 'en';
     const name = s.guest ? '游客' : s.name;
-    const initial = s.guest ? '游' : String(s.name || 'P').trim().charAt(0).toUpperCase();
+    const initial = s.guest ? (en ? 'G' : '游') : String(s.name || 'P').trim().charAt(0).toUpperCase();
     $('userName').textContent = s.guest ? '登录' : s.name;
     $('userAvatar').textContent = initial;
     $('acctAvatar').textContent = initial;
@@ -206,7 +207,8 @@
     };
     $('acctWipe').onclick = async () => {
       const s = session();
-      const ok = await confirm('清除本机数据？', `会删除「${s.guest ? '游客' : s.name}」的元素库和画板，无法恢复。`);
+      const who = s.guest ? (window.PPI18N && PPI18N.lang() === 'en' ? 'Guest' : '游客') : s.name;
+      const ok = await confirm('清除本机数据？', `会删除「${who}」的元素库和画板，无法恢复。`);
       if (!ok) return;
       await PPStore.clear(s.uid);
       await PPStore.clearBoard(s.uid);
@@ -279,6 +281,15 @@
     if (A.view === 'library' || A.view === 'board') { try { PPLibrary.onEnter(); } catch (e) { } }
   }
 
+  function onLanguageChange() {
+    renderUser();
+    syncUserMeta();
+    try { PPExtract.refresh(); } catch (e) { }
+    try { PPLibrary.refresh(); } catch (e) { }
+    try { PPBoard.refreshAssets(); PPBoard.draw(); } catch (e) { }
+    if (window.PPI18N) document.title = PPI18N.titleFor(A.view);
+  }
+
   /* ── 入场动画 ── */
   function bindReveal() {
     const els = [...document.querySelectorAll('.home .section')];
@@ -292,7 +303,7 @@
 
   window.PPApp = {
     boot, go, view: () => A.view, session,
-    toast, confirm, afterLibraryChange, syncUserMeta, renderUser,
+    toast, confirm, afterLibraryChange, syncUserMeta, renderUser, onLanguageChange,
     openModal, closeModal, exitFocus
   };
 
