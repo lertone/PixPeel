@@ -2,6 +2,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: file:; style-src 'self' 'unsafe-inline'; script-src 'self' blob: 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://fastly.jsdelivr.net https://unpkg.com; worker-src 'self' blob:; connect-src 'self' data: blob: https:; media-src 'self'">
 <title>PixPeel</title><link rel="stylesheet" href="style.css"></head><body>
 <aside class="rail">
+  <button class="railMin" id="railHide" title="收起导航栏">‹</button>
   <div class="logo" title="PixPeel">
     <svg class="logoSvg" viewBox="0 0 100 100" aria-hidden="true">
       <rect x="6" y="6" width="88" height="88" rx="23" fill="#ff6b3d"/>
@@ -22,6 +23,7 @@
   <button class="act main" id="btnCap"><svg class="i" viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/></svg><span data-i18n="btnCap">框选屏幕</span></button>
   <div id="hkTip"></div>
 </aside>
+<button id="railShow" title="展开导航栏">›</button>
 <main>
   <section class="view on" id="v-edit"></section>
   <section class="view" id="v-lib"></section>
@@ -32,5 +34,5 @@
 </main>
 <div id="toast"></div>
 <div id="dropHint"></div>
-<script src="i18n.js"></script><script src="engine.js"></script><script src="app.js"></script><script src="board.js"></script><script src="svg.js"></script><script src="extras.js"></script>
+<script src="i18n.js"></script><script src="vendor/ort/ort.all.min.js"></script><script src="vendor/imagetracer.js"></script><script src="engine.js"></script><script src="app.js"></script><script src="board.js"></script><script src="svg.js"></script><script src="extras.js"></script><script src="sr.js"></script>
 </body></html>

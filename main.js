@@ -8,6 +8,7 @@ const {
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
+const zlib = require('zlib');
 const I18N = require('./renderer/i18n');
 const APP = require('./config');
 
@@ -24,7 +25,8 @@ const updater = require('./updater');
 const isWin = process.platform === 'win32';
 const appIcon = () => path.join(__dirname, 'build', isWin ? 'icon.ico' : 'icon.png');
 
-if (!app.requestSingleInstanceLock()) { app.quit(); return; }
+/* 开发时允许同时开多个实例（设 PP_ALLOW_MULTI=1），方便和已安装版本一起调试 */
+if (!process.env.PP_ALLOW_MULTI && !app.requestSingleInstanceLock()) { app.quit(); return; }
 
 const DEFAULTS = () => ({
   saveDir: path.join(app.getPath('pictures'), APP.name),
@@ -34,6 +36,8 @@ const DEFAULTS = () => ({
   autoHD: false,
   edgeSmooth: true,
   edgeGap: 4,
+  softEdge: 0,
+  srModel: true,
   aiModel: 'q8',
   notify: true,
   openAtLogin: false,
@@ -297,7 +301,7 @@ async function applyServer() {
 function publicSettings() {
   return {
     ...settings, serverRunning: server.running(), platform: process.platform,
-    langResolved: lang(), version: app.getVersion(), name: APP.name, repo: APP.repo, repoUrl: APP.repoUrl, repoConfigured: APP.configured, donate: APP.donate || {},
+    langResolved: lang(), version: app.getVersion(), name: APP.name, repo: APP.repo, repoUrl: APP.repoUrl, repoConfigured: APP.configured, website: APP.website || '', donate: APP.donate || {},
     versions: { electron: process.versions.electron, chrome: process.versions.chrome, node: process.versions.node },
     userData: app.getPath('userData'), defaults: HOTKEY_DEFAULTS, locale: app.getLocale()
   };
@@ -338,12 +342,94 @@ async function checkUpdate() {
 const safeExternal = (u) => {
   /* 只放行 https 且域名在白名单里：GitHub（更新/项目页）+ config.js 里配置的捐赠入口 */
   const hosts = new Set(['github.com', 'api.github.com']);
+  try { if (APP.website) hosts.add(new URL(APP.website).host); } catch (e) { /* 网址写错就不放行 */ }
   Object.values(APP.donate || {}).forEach((v) => { try { hosts.add(new URL(v).host); } catch (e) { /* 配置留空或写错就跳过 */ } });
   try {
     const url = new URL(String(u));
     return url.protocol === 'https:' && hosts.has(url.host) ? shell.openExternal(u) : false;
   } catch (e) { return false; }
 };
+
+/* ---------- 画板存档 ----------
+ * 存到 userData/board-archives，升级 / 换安装目录都不丢。
+ * 只接收 .json，文件名做 basename 校验，防止跳出目录。 */
+const archiveDir = () => path.join(app.getPath('userData'), 'board-archives');
+function archiveList() {
+  try {
+    return fs.readdirSync(archiveDir()).filter(f => /\.json$/i.test(f)).map(f => {
+      const p = path.join(archiveDir(), f);
+      let size = 0, mtime = 0;
+      try { const st = fs.statSync(p); size = st.size; mtime = st.mtimeMs; } catch (e) { }
+      return { file: f, name: f.replace(/\.json$/i, ''), size, time: mtime };
+    }).sort((a, b) => b.time - a.time);
+  } catch (e) { return []; }
+}
+function archiveSave(name, json) {
+  try {
+    fs.mkdirSync(archiveDir(), { recursive: true });
+    const base = String(name || 'board').replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+    let file = `${base}.json`;
+    for (let i = 2; fs.existsSync(path.join(archiveDir(), file)); i++) file = `${base} ${i}.json`;
+    fs.writeFileSync(path.join(archiveDir(), file), String(json), 'utf8');
+    return { ok: true, file, name: file.replace(/\.json$/i, '') };
+  } catch (e) { return { ok: false, msg: String(e.message || e) }; }
+}
+
+/* ---------- 字体库 ----------
+ * 内置字体随安装包走；用户导入 / 在应用内下载的字体放 userData/fonts，
+ * 这样升级、换安装目录都不会丢。下载源固定 registry.npmmirror.com（国内直连）。 */
+const fontDir = () => path.join(app.getPath('userData'), 'fonts');
+const FONT_EXT = /\.(ttf|otf|woff2?)$/i;
+const fontSafe = (s) => String(s || '').replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim().slice(0, 60) || 'font';
+function fontList() {
+  try {
+    return fs.readdirSync(fontDir()).filter(f => FONT_EXT.test(f)).map(f => {
+      let size = 0; try { size = fs.statSync(path.join(fontDir(), f)).size; } catch (e) { }
+      return { file: f, name: f.replace(FONT_EXT, ''), size };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  } catch (e) { return []; }
+}
+function fontSave(name, data) {
+  const ext = (path.extname(name) || '.ttf').toLowerCase();
+  if (!FONT_EXT.test(ext) || !data || !data.length) return { ok: false };
+  fs.mkdirSync(fontDir(), { recursive: true });
+  const base = fontSafe(path.basename(name, path.extname(name)));
+  let file = base + ext;
+  for (let i = 2; fs.existsSync(path.join(fontDir(), file)); i++) file = base + ' ' + i + ext;
+  fs.writeFileSync(path.join(fontDir(), file), Buffer.from(data));
+  return { ok: true, file, name: path.basename(file, ext) };
+}
+function httpGet(url, depth) {
+  depth = depth || 0;
+  return new Promise((resolve, reject) => {
+    if (depth > 5) return reject(new Error('too many redirects'));
+    const req = https.get(url, { headers: { 'User-Agent': 'PixPeel/' + app.getVersion() } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        res.resume(); return resolve(httpGet(new URL(res.headers.location, url).href, depth + 1));
+      }
+      if (res.statusCode !== 200) { res.resume(); return reject(new Error('http ' + res.statusCode)); }
+      const chunks = []; let n = 0;
+      res.on('data', (c) => { n += c.length; if (n > 60e6) { req.destroy(); reject(new Error('too large')); } else chunks.push(c); });
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+    req.on('error', reject);
+    req.setTimeout(60000, () => req.destroy(new Error('timeout')));
+  });
+}
+/* npm 包是 gzip + tar；这里只需要取出其中一个文件，手写最小 tar 解析就够 */
+function tarPick(gz, want) {
+  const buf = zlib.gunzipSync(gz);
+  for (let off = 0; off + 512 <= buf.length;) {
+    const name = buf.toString('utf8', off, off + 100).replace(/\0.*$/, '');
+    if (!name) break;
+    const size = parseInt(buf.toString('ascii', off + 124, off + 136).replace(/\0.*$/, '').trim(), 8) || 0;
+    const type = String.fromCharCode(buf[off + 156] || 48);
+    const start = off + 512;
+    if ((type === '0' || type === '\0') && name === want) return buf.subarray(start, start + size);
+    off = start + Math.ceil(size / 512) * 512;
+  }
+  return null;
+}
 
 /* ---------- IPC ---------- */
 function ipc() {
@@ -461,6 +547,46 @@ function ipc() {
   ipcMain.handle('live:save', (e, o) => { try { return saveLive(o); } catch (err) { console.error(err); return { ok: false }; } });
   ipcMain.on('live:done', () => { if (liveWin && !liveWin.isDestroyed()) liveWin.close(); });
   ipcMain.handle('import:dialog', () => importDialog());
+  ipcMain.handle('font:list', () => fontList());
+  /* 高清模型 / ORT WASM 从 asar 里按白名单读取（file:// 下 fetch 不到这些大文件） */
+  const SR_ASSETS = {
+    'sr/model.onnx': path.join(__dirname, 'renderer', 'vendor', 'models', 'realesr-general-x4v3.onnx'),
+    'sr/ort-wasm-simd-threaded.wasm': path.join(__dirname, 'renderer', 'vendor', 'ort', 'ort-wasm-simd-threaded.wasm')
+  };
+  ipcMain.handle('asset:read', (e, name) => {
+    const p = SR_ASSETS[String(name || '')];
+    if (!p) return null;
+    try { return fs.readFileSync(p); } catch (err) { return null; }
+  });
+  ipcMain.handle('archive:list', () => archiveList());
+  ipcMain.handle('archive:save', (e, o) => archiveSave(o && o.name, o && o.json));
+  ipcMain.handle('archive:read', (e, file) => {
+    if (!/\.json$/i.test(String(file || '')) || path.basename(file) !== file) return null;
+    try { return fs.readFileSync(path.join(archiveDir(), file), 'utf8'); } catch (err) { return null; }
+  });
+  ipcMain.handle('archive:del', (e, file) => {
+    if (!/\.json$/i.test(String(file || '')) || path.basename(file) !== file) return false;
+    try { fs.unlinkSync(path.join(archiveDir(), file)); return true; } catch (err) { return false; }
+  });
+  ipcMain.handle('font:read', (e, file) => {
+    if (!FONT_EXT.test(String(file || '')) || path.basename(file) !== file) return null;
+    try { return fs.readFileSync(path.join(fontDir(), file)); } catch (err) { return null; }
+  });
+  ipcMain.handle('font:import', (e, o) => { try { return fontSave(o && o.name, o && Buffer.from(o.data)); } catch (err) { console.error(err); return { ok: false }; } });
+  ipcMain.handle('font:del', (e, file) => {
+    if (!FONT_EXT.test(String(file || '')) || path.basename(file) !== file) return false;
+    try { fs.unlinkSync(path.join(fontDir(), file)); return true; } catch (err) { return false; }
+  });
+  ipcMain.handle('font:download', async (e, o) => {
+    try {
+      const u = new URL(String(o && o.url));
+      if (u.protocol !== 'https:' || u.hostname !== 'registry.npmmirror.com') return { ok: false, msg: 'bad url' };
+      const gz = await httpGet(u.href);
+      const data = tarPick(gz, 'package/' + o.entry);
+      if (!data) return { ok: false, msg: 'not found' };
+      return fontSave(String(o.label || 'font') + path.extname(o.entry), data);
+    } catch (err) { console.error(err); return { ok: false, msg: String(err.message || err) }; }
+  });
   ipcMain.handle('win:hide', () => { if (win) win.hide(); });
 }
 

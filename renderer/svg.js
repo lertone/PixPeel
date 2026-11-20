@@ -42,7 +42,7 @@ const SvgLib = (() => {
           <div class="nm" title="${esc(it.name)}">${esc(it.name)}</div>
           <div class="bar"><button class="btn sm" data-act="open" title="${t('svgOpenTip')}">${t('svgOpen')}</button>
           <button class="btn sm" data-act="reveal" title="${t('revealTip')}">${t('reveal')}</button>
-          <button class="btn sm danger" data-act="del" title="${t('delTip')}">${t('del')}</button></div></div>`).join('')}</div>`).join('')
+          <button class="btn sm danger ico" data-act="del" title="${t('delTip')}" aria-label="${t('del')}">${IC.trash}</button></div></div>`).join('')}</div>`).join('')
         : `<div class="blank"><b>${t('svgLibEmptyT')}</b><span>${t('svgLibEmptyD')}</span></div>`}</div>`;
     $('#svgImp').onclick = pick;
     $('#svgRef').onclick = render;
@@ -66,6 +66,7 @@ const SvgLib = (() => {
       }
       await SvgCanvas.openRel(rel);
     };
+    if (typeof gridSelectInit === 'function') gridSelectInit(el);
   }
   function pick() {
     const inp = document.createElement('input');
@@ -89,8 +90,9 @@ const SvgLib = (() => {
 const SvgCanvas = (() => {
   const S = {
     name: '', w: 0, h: 0, svg: null, layers: [], sel: null, multi: new Set(),
-    z: 1, x: 0, y: 0, fit: true, mode: null, ov: null, lang: ''
+    z: 1, x: 0, y: 0, fit: true, mode: null, ov: null, lang: '', bitmap: false
   };
+  let rowTap = { i: -1, t: 0 };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
   function parse(text) {
@@ -120,6 +122,9 @@ const SvgCanvas = (() => {
 
   function openSvg(svg, name) {
     S.svg = svg; S.name = name || 'svg';
+    /* 从「拆元素」导出的分层 SVG 每层都是 <image> 内嵌位图，不是矢量路径。
+       这里标出来，免得用户以为放大不糊。 */
+    S.bitmap = !!svg.querySelector('image');
     const sz = sizeOf(svg);
     S.w = Math.max(1, Math.round(sz.w)); S.h = Math.max(1, Math.round(sz.h));
     if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${S.w} ${S.h}`);
@@ -210,7 +215,8 @@ const SvgCanvas = (() => {
       if (gs[i].firstElementChild) L.el = gs[i].firstElementChild;
       L.bb = null; apply(L);
     });
-    $('#svgName').textContent = S.name + '  ' + S.w + '×' + S.h;
+    $('#svgName').textContent = S.name + '  ' + S.w + '×' + S.h + (S.bitmap ? '  · ' + t('svgBitmapTag') : '  · ' + t('svgVectorTag'));
+    $('#svgName').title = S.bitmap ? t('svgBitmapNote') : '';
     $('#svgImp').onclick = () => SvgLib.pick();
     $('#svgSaveLib').onclick = saveToLib;
     $('#svgExp').onclick = exportSvg;
@@ -288,7 +294,9 @@ const SvgCanvas = (() => {
   }
   function rotHandle(cs) {
     const mid = { x: (cs[0].x + cs[1].x) / 2, y: (cs[0].y + cs[1].y) / 2 };
-    return { x: mid.x, y: mid.y - 26 };
+    /* 沿顶边的外法线伸出去，跟着图层一起旋转；只从顶边中点引一小段，不用角上的斜线 */
+    const ex = cs[1].x - cs[0].x, ey = cs[1].y - cs[0].y, len = Math.hypot(ex, ey) || 1;
+    return { x: mid.x + (ey / len) * 26, y: mid.y - (ex / len) * 26, mid };
   }
 
   /* 覆盖层：选中框 + 四角缩放柄 + 顶部旋转柄 + 框选矩形 */
@@ -307,7 +315,7 @@ const SvgCanvas = (() => {
       if (list.length === 1) {
         for (const p of cs) h += `<rect x="${(p.x - 5).toFixed(1)}" y="${(p.y - 5).toFixed(1)}" width="10" height="10" fill="#fff" stroke="#52e3bd" stroke-width="1.5"/>`;
         const rh = rotHandle(cs);
-        h += `<line x1="${cs[0].x.toFixed(1)}" y1="${cs[0].y.toFixed(1)}" x2="${rh.x.toFixed(1)}" y2="${rh.y.toFixed(1)}" stroke="#52e3bd" stroke-width="1.5"/>`;
+        h += `<line x1="${rh.mid.x.toFixed(1)}" y1="${rh.mid.y.toFixed(1)}" x2="${rh.x.toFixed(1)}" y2="${rh.y.toFixed(1)}" stroke="#52e3bd" stroke-width="1.5"/>`;
         h += `<circle cx="${rh.x.toFixed(1)}" cy="${rh.y.toFixed(1)}" r="6" fill="#fff" stroke="#52e3bd" stroke-width="1.5"/>`;
       }
     }
@@ -424,6 +432,12 @@ const SvgCanvas = (() => {
   }
 
   /* ───────── 图层列表 ───────── */
+  function syncRowSel() {
+    const el = $('#svList'); if (!el) return;
+    el.querySelectorAll('.svRow').forEach(r => r.classList.toggle('sel', S.multi.has(S.layers[+r.dataset.i])));
+    const c = $('#svCount');
+    if (c) c.textContent = S.multi.size > 1 ? t('svgSelN', { n: S.multi.size }) : t('nItems', { n: S.layers.length });
+  }
   function list() {
     const el = $('#svList'); if (!el) return;
     $('#svCount').textContent = S.multi.size > 1 ? t('svgSelN', { n: S.multi.size }) : t('nItems', { n: S.layers.length });
@@ -437,15 +451,24 @@ const SvgCanvas = (() => {
       const row = e.target.closest('.svRow'); if (!row) return;
       const i = +row.dataset.i, L = S.layers[i]; if (!L) return;
       if (e.target.matches('input[data-vis]')) { L.vis = e.target.checked; apply(L); drawOverlay(); return; }
+      /* 列表每次点击都会重建，原生 dblclick 等不到；按两次点击间隔自己判断 */
+      const now = Date.now();
+      if (!e.ctrlKey && !e.metaKey && rowTap.i === i && now - rowTap.t < 380) {
+        rowTap = { i: -1, t: 0 };
+        askText(t('svgRename'), L.name, (v) => {
+          L.name = v;
+          try { L.el.setAttribute('id', v.replace(/[^\w一-龥-]/g, '_')); } catch (err) { }
+          list();
+        });
+        return;
+      }
+      rowTap = { i, t: now };
       if (e.ctrlKey || e.metaKey) { S.multi.has(L) ? S.multi.delete(L) : S.multi.add(L); }
       else { S.multi.clear(); S.multi.add(L); }
-      S.sel = L; list(); prop(); drawOverlay();
-    };
-    el.ondblclick = (e) => {
-      const row = e.target.closest('.svRow'); if (!row) return;
-      const L = S.layers[+row.dataset.i]; if (!L) return;
-      const nm = prompt(t('svgRename'), L.name);
-      if (nm) { L.name = nm; L.el.setAttribute('id', nm.replace(/[^\w一-龥-]/g, '_')); list(); }
+      S.sel = L;
+      /* 只更新行状态，别重建列表：重建会让双击的第二下落到新节点上，改名永远触发不了 */
+      syncRowSel();
+      prop(); drawOverlay();
     };
     prop();
   }
@@ -462,7 +485,7 @@ const SvgCanvas = (() => {
       <label class="fld"><span>${t('svgRotate')}</span><input type="range" data-p="r" min="-180" max="180" value="${Math.round(L.r)}"><b>${Math.round(L.r)}°</b></label></div>
       <div class="sv-p"><label class="fld"><span>${t('svgOpacity')}</span><input type="range" data-p="op" min="0" max="100" value="${Math.round(L.op * 100)}"><b>${Math.round(L.op * 100)}%</b></label></div>
       <div class="sv-p"><button class="btn sm" id="svgFront">${t('svgFront')}</button><button class="btn sm" id="svgBack">${t('svgBack')}</button>
-      <button class="btn sm danger" id="svgDel">${t('svgDelSel', { n: arr.length })}</button>
+      <button class="btn sm danger ico" id="svgDel" title="${t('svgDelSel', { n: arr.length })}" aria-label="${t('svgDelSel', { n: arr.length })}">${IC.trash}</button>
       <button class="btn sm danger" id="svgClear">${t('svgClearAll')}</button></div>`;
     p.oninput = (e) => {
       const k = e.target.dataset.p; if (!k) return;

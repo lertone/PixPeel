@@ -259,7 +259,16 @@ function hdEnhance(img, f) {
   }
   return out;
 }
-async function hdCanvas(srcCv, f) {
+async function hdCanvas(srcCv, f, useModel = true) {
+  /* 手动点「高清」时优先用内置 Real-ESRGAN 模型；保存时自动修复用经典算法，避免批量保存太慢 */
+  if (useModel && typeof srUpscale === 'function' && !(typeof CFG !== 'undefined' && CFG && CFG.srModel === false)) {
+    try {
+      return await srUpscale(srcCv, f, (i, n) => toast(t('hdModelBusy', { i, n })));
+    } catch (e) {
+      console.warn('SR model fallback:', e);
+      toast(t('hdModelFallback'));
+    }
+  }
   const g = srcCv.getContext('2d'), id = g.getImageData(0, 0, srcCv.width, srcCv.height);
   await new Promise(r => setTimeout(r, 0));                        // 让界面先喘口气
   const o = hdEnhance(id, f), c = document.createElement('canvas'); c.width = o.width; c.height = o.height; c.getContext('2d').putImageData(o, 0, 0); return c;
@@ -315,7 +324,7 @@ async function hdDecorate() {
   buildOut = async function () {
     const out = await _bo();
     if (!out || !HD.save || !(CFG && CFG.autoHD)) return out;
-    for (const o of out) { const f = hdFactor(o.cv.width, o.cv.height, false); if (f > 1) o.cv = await hdCanvas(o.cv, f); }
+    for (const o of out) { const f = hdFactor(o.cv.width, o.cv.height, false); if (f > 1) o.cv = await hdCanvas(o.cv, f, false); }
     return out;
   };
   const _ds = doSave;
@@ -331,14 +340,22 @@ async function hdDecorate() {
     const box = document.createElement('div'); box.className = 'set';
     box.innerHTML = `<h3>${t('sTools')}</h3>
       <label class="item"><div><div class="t">${t('sHD')}</div><div class="d">${t('sHDD', { n: HD.LOW })}</div></div><input type="checkbox" class="sw" id="sHD" ${CFG.autoHD ? 'checked' : ''}></label>
+      <label class="item"><div><div class="t">${t('sSR')}</div><div class="d">${t('sSRD')}</div></div><input type="checkbox" class="sw" id="sSR" ${CFG.srModel !== false ? 'checked' : ''}></label>
       <label class="item"><div><div class="t">${t('sEdge')}</div><div class="d">${t('sEdgeD')}</div></div><input type="checkbox" class="sw" id="sEdge" ${CFG.edgeSmooth === false ? '' : 'checked'}></label>
       <div class="item"><div><div class="t">${t('sGap')}</div><div class="d">${t('sGapD')}</div></div>
         <select id="sGap"><option value="0">${t('sGapOff')}</option><option value="2">2 px</option><option value="3">3 px</option><option value="4">4 px</option><option value="5">5 px</option><option value="6">6 px</option></select></div>
+      <div class="item"><div><div class="t">${t('sSoft')}</div><div class="d">${t('sSoftD')}</div></div>
+        <div class="row2"><input type="range" id="sSoft" min="0" max="6" step="1" style="width:120px"><b id="sSoftN"></b></div></div>
       <div class="item"><div><div class="t">${t('aiModel')}</div><div class="d">${t('aiModelDesc')}</div></div>
         <select id="sAiModel"><option value="q8">${t('aiModelQ')} · ${t('aiModelQDesc')}</option><option value="fp32">${t('aiModelF')} · ${t('aiModelFDesc')}</option></select></div>
       <div class="item"><div><div class="t">${t('sKeys')}</div><div class="d">${t('sKeysD')}</div></div><button class="btn" id="sKeys">${t('viewBtn')}</button></div>`;
     sets[Math.min(1, sets.length - 1)].after(box);
     $('#sHD').onchange = async (e) => { const r = await api.setSettings({ autoHD: e.target.checked }); if (r && r.settings) CFG = r.settings; else CFG.autoHD = e.target.checked; };
+    const ssr = $('#sSR');
+    if (ssr) ssr.onchange = async (e) => {
+      const r = await api.setSettings({ srModel: e.target.checked });
+      if (r && r.settings) CFG = r.settings; else CFG.srModel = e.target.checked;
+    };
     const se = $('#sEdge');
     if (se) se.onchange = async (e) => {
       const r = await api.setSettings({ edgeSmooth: e.target.checked });
@@ -357,6 +374,21 @@ async function hdDecorate() {
         if (r && r.settings) CFG = r.settings; else CFG.edgeGap = v;
         /* 强度变了，之前算好的蒙版和透明底图都要作废重算 */
         SEG.layers.forEach(L => { L.mp = null; L._cuts = null; });
+        segList(); segRender();
+      };
+    }
+    const sf = $('#sSoft');
+    if (sf) {
+      const show = () => { const n = $('#sSoftN'); if (n) n.textContent = (+sf.value ? sf.value + ' px' : '0 px'); };
+      sf.value = String((CFG && CFG.softEdge != null) ? CFG.softEdge : 0); show();
+      sf.oninput = show;
+      sf.onchange = async (e) => {
+        show();
+        const v = +e.target.value;
+        const r = await api.setSettings({ softEdge: v });
+        if (r && r.settings) CFG = r.settings; else CFG.softEdge = v;
+        /* 软边强度变了，切好的透明底图必须作废重算 */
+        SEG.layers.forEach(L => { L._cuts = null; });
         segList(); segRender();
       };
     }

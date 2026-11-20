@@ -6,6 +6,8 @@ module.exports = {
   repo: 'lertone/PixPeel',
   get repoUrl() { return 'https://github.com/' + this.repo; },
   get configured() { return !/YOUR_/.test(this.repo); },
+  /* 网页版官网：拆元素 / 元素库 / 画板，也是介绍视频的入口 */
+  website: 'https://lertone.github.io/PixPeel/',
   /* 捐赠入口：留空字符串就不显示对应按钮。商用授权和捐赠是两回事，别混在一起。 */
   donate: {
     kofi: 'https://ko-fi.com/lertone',

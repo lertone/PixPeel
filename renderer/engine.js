@@ -2,6 +2,7 @@
 const uid=()=>Math.random().toString(36).slice(2,10);
 const _yield=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=()=>r();c.port2.postMessage(0)});
 const SEG={src:null,layers:[],sel:new Set(),hov:null,tool:'pick',mode:'new',tol:40,merge:6,minA:.15,how:'auto',K:6,fromClip:null,lasso:null,ai:null,busy:false,seq:1,
+  aiPts:[],aiLayer:null,aiNeg:false,
   tiles:[],cur:0,wall:{w:0,h:0},gap:18,tileH:520};
 
 /* ── 清空一次导入的全部状态 ──
@@ -18,9 +19,10 @@ function segReset(){
     if(s.cv){try{s.cv.width=0;s.cv.height=0}catch(e){}}
     s.cv=null;s.data=null;
   }
-  for(const L of SEG.layers){L.m=null;L.mp=null;L.tint=null;L._cuts=null;}
+  for(const L of SEG.layers){L.m=null;L.mp=null;L.tint=null;L._cuts=null;L._srcCv=null;}
   SEG.src=null;SEG.layers=[];SEG.tiles=[];SEG.cur=0;SEG.wall={w:0,h:0};
   SEG.sel.clear();SEG.hov=null;SEG.lasso=null;SEG.fromClip=null;SEG.name='';
+  SEG.aiPts=[];SEG.aiLayer=null;SEG.aiNeg=false;
   SEG.seq=1;
   if(SEG.ai){SEG.ai.embedded=false;SEG.ai.raw=null;SEG.ai.gen=(SEG.ai.gen||0)+1;}
 }
@@ -92,8 +94,10 @@ function segLayerFromFull(full,w,h,name){
 function relabelLayers() {
   let n = 0;
   for (const L of (SEG.layers || [])) {
-    if (L.autoName == null) continue;
-    const nm = t('elem') + ' ' + L.autoName;
+    let nm = null;
+    if (L.autoName != null) nm = t('elem') + ' ' + L.autoName;
+    else if (L.autoKind) nm = t(L.autoKind === 'line' ? 'kindLine' : 'kindText', { n: L.autoKindN || 1 });
+    else continue;
     if (L.name !== nm) { L.name = nm; n++; }
   }
   return n > 0;
@@ -132,6 +136,41 @@ function segFg(img,tol){
   for(let i=0;i<n;i++)fg[i]=bgm[i]?0:1;
   return{fg,mode:'bg',bg:[r,g,b]};
 }
+/* 带外框的截图 / 海报：外面一圈深色边框把整张图围起来，普通「从边缘去背景」
+ * 只能去掉框外面的颜色，框里面全被当成前景连成一块，最后只剩一个「元素」。
+ * 这种情况（前景铺满整图 + 背景模式）改用内部主色当背景，把大面积的同色区域去掉。 */
+function segInnerBg(img, fg, tol) {
+  const { w, h, data } = img, n = w * h;
+  const q = (i) => { const j = i * 4; return ((data[j] >> 4) << 8) | ((data[j + 1] >> 4) << 4) | (data[j + 2] >> 4); };
+  const hist = new Map();
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    if (!fg[i] || data[i * 4 + 3] < 24) continue;
+    const k = q(i); hist.set(k, (hist.get(k) || 0) + 1); total++;
+  }
+  if (!total) return null;
+  let best = -1, bc = 0;
+  for (const [k, c] of hist) if (c > bc) { bc = c; best = k; }
+  if (bc < total * 0.25) return null;          /* 没有明显主色，可能真的是照片 */
+  let r = 0, g = 0, b = 0, cnt = 0;
+  for (let i = 0; i < n; i++) {
+    if (!fg[i] || q(i) !== best) continue;
+    const j = i * 4; r += data[j]; g += data[j + 1]; b += data[j + 2]; cnt++;
+  }
+  if (!cnt) return null;
+  r /= cnt; g /= cnt; b /= cnt;
+  const t = Math.max(32, Math.min(90, (tol || 24) * 1.5)), t2 = t * t;
+  const out = new Uint8Array(n);
+  let kept = 0, gone = 0;
+  for (let i = 0; i < n; i++) {
+    if (!fg[i]) continue;
+    const j = i * 4, dr = data[j] - r, dg = data[j + 1] - g, db = data[j + 2] - b;
+    if (data[j + 3] >= 24 && dr * dr + dg * dg + db * db <= t2) gone++;
+    else { out[i] = 1; kept++; }
+  }
+  if (!kept || gone < total * 0.15) return null;
+  return out;
+}
 function segKmeans(img,K){
   const {w,h,data}=img,n=w*h,step=Math.max(1,Math.floor(n/6000)),S_=[];
   for(let i=0;i<n;i+=step)S_.push([data[i*4],data[i*4+1],data[i*4+2]]);
@@ -151,6 +190,12 @@ async function segAuto(){
   let how=SEG.how,info='';
   let f=null;
   if(how!=='color'){f=segFg(img,SEG.tol);if(f.mode==='color'){if(how==='auto'){how='color';info=t('eInfoColor')}else f=null}else info=f.mode==='alpha'?t('eAlpha'):t('eBgDone')}
+  /* 前景几乎铺满整张图 = 被外框包住了，改用内部主色再分一次（见 segInnerBg） */
+  if(f&&f.mode==='bg'&&f.fg){
+    const cc0=segCC(f.fg,w,h);let big=0;
+    for(let q=1;q<=cc0.n;q++)if(cc0.comps[q].area>big)big=cc0.comps[q].area;
+    if(big>n*0.85){const f2=segInnerBg(img,f.fg,SEG.tol);if(f2){f={fg:f2,mode:'bg'};info=t('eBgInner')}}
+  }
   if(how==='color'||!f||!f.fg){
     const km=segKmeans(img,SEG.K);
     for(let k=0;k<km.K;k++){
@@ -179,6 +224,51 @@ async function segAuto(){
   for(const o of out.slice(0,60)){const L=segMk(o);L.tile=SEG.cur;SEG.layers.push(L);}
   return info+(out.length>60?t('eTooMany'):'');
 }
+/* ── 自动文字 / 线条整理 ──
+ * 拆解出来的单个字母、汉字笔画、分割线常常是一小块一小块的。
+ * 这里做两件不破坏原图的事：
+ *   ① 细长条认成「线条」，按顺序命名；
+ *   ② 同一行、高度接近、间距很小的碎块合并成一个「文字块」。
+ * 由用户点按钮触发，自动拆分本身不会偷偷合并。 */
+function segGroupText(){
+  const {w,h}=SEG.src,cur=SEG.cur;
+  if(!SEG.layers.length)return{t:0,l:0};
+  let lines=0;
+  for(const L of SEG.layers){
+    if(L.tile!==cur)continue;
+    const ar=Math.max(L.bw/L.bh,L.bh/L.bw),th=Math.min(L.bw,L.bh);
+    if(ar>=7&&th<=Math.max(8,Math.min(w,h)*0.02)&&L.autoName!=null){L.autoKind='line';L.autoKindN=++lines;L.autoName=null;L.name=t('kindLine',{n:lines})}
+  }
+  const maxS=Math.max(24,Math.min(w,h)*0.22);
+  const cand=SEG.layers.filter(L=>L.tile===cur&&L.autoKind!=='line'&&L.bw<=w*0.32&&L.bh<=h*0.28&&Math.max(L.bw,L.bh)<=maxS);
+  const used=new Set();let blocks=0;
+  for(let i=0;i<cand.length;i++){
+    const A=cand[i];if(used.has(A))continue;
+    const group=[A],ay=A.by+A.bh/2;
+    for(let j=i+1;j<cand.length;j++){
+      const B=cand[j];if(used.has(B))continue;
+      const by=B.by+B.bh/2;
+      if(Math.abs(by-ay)>Math.max(4,Math.min(A.bh,B.bh)*0.9))continue;
+      if(Math.min(A.bh,B.bh)/Math.max(A.bh,B.bh)<0.45)continue;
+      const gap=Math.max(B.bx-(A.bx+A.bw),A.bx-(B.bx+B.bw));
+      if(gap>Math.max(6,Math.max(A.bh,B.bh)*1.4))continue;
+      group.push(B);
+    }
+    if(group.length<2)continue;
+    const full=new Uint8Array(w*h);
+    for(const L of group){
+      used.add(L);
+      for(let y=0;y<L.bh;y++)for(let x=0;x<L.bw;x++)if(L.m[y*L.bw+x])full[(L.by+y)*w+L.bx+x]=1;
+    }
+    const nl=segLayerFromFull(full,w,h);if(!nl)continue;
+    nl.tile=cur;nl.on=A.on;nl.color=A.color;nl.manual=true;nl.autoName=null;
+    nl.autoKind='text';nl.autoKindN=++blocks;nl.name=t('kindText',{n:blocks});
+    const idx=Math.min(...group.map(L=>SEG.layers.indexOf(L)));
+    SEG.layers=SEG.layers.filter(L=>!group.includes(L));
+    SEG.layers.splice(Math.max(0,Math.min(idx,SEG.layers.length)),0,nl);
+  }
+  return{t:blocks,l:lines};
+}
 /* 魔棒 */
 function segWand(x,y,tol){
   const {w,h,data}=SEG.src,n=w*h,m=new Uint8Array(n),st=new Int32Array(n);let sp=0;
@@ -195,27 +285,74 @@ function segWand(x,y,tol){
 /* 把一个整图蒙版并进图层：新建 / 加到所选 / 从所选减去 */
 /* 加 / 减的对象：点选中的元素 → 否则勾选了的元素 →（只有“减去”）圈到的元素 */
 function segTargets(full){
-  const {w}=SEG.src,act=SEG.layers.find(l=>l.id===[...SEG.sel][0]);
+  const {w}=SEG.src,cur=SEG.cur;
+  /* 只认当前这张图上的选中层；切图块时如果还留着别的图的选中，会按错坐标改错元素 */
+  const act=SEG.layers.find(l=>l.id===[...SEG.sel][0]&&(l.tile==null||l.tile===cur));
   if(act)return[act];
-  const on=SEG.layers.filter(l=>l.on&&l.tile===SEG.cur);
-  if(SEG.mode==='add')return on.length===1?on:[];
+  const on=SEG.layers.filter(l=>l.on&&l.tile===cur);
+  const hits=SEG.layers.filter(L=>{
+    if(L.tile!==cur)return false;
+    for(let y=0;y<L.bh;y++)for(let x=0;x<L.bw;x++)if(L.m[y*L.bw+x]&&full[(L.by+y)*w+L.bx+x])return true;
+    return false;
+  });
+  /* 加 / 减 / 拆：没显式选中时，直接作用在圈到的那个元素上（最上面的一层） */
+  if(SEG.mode==='add'||SEG.mode==='sub'||SEG.mode==='split'){
+    if(hits.length)return[hits[hits.length-1]];
+    return on.length===1?on:[];
+  }
   if(on.length)return on;
-  return SEG.layers.filter(L=>{if(L.tile!==SEG.cur)return false;for(let y=0;y<L.bh;y++)for(let x=0;x<L.bw;x++)if(L.m[y*L.bw+x]&&full[(L.by+y)*w+L.bx+x])return true;return false});
+  return hits;
+}
+/** 用一份整图蒙版替换某一层（AI 连续点选 / 反选时不断修正同一层用） */
+function segReplaceLayer(L, full){
+  const {w,h}=SEG.src;
+  const nl=segLayerFromFull(full,w,h,L.name);
+  if(!nl)return null;
+  nl.color=L.color;nl.on=L.on;nl.tile=L.tile;nl.autoName=L.autoName;nl.manual=true;
+  const ix=SEG.layers.indexOf(L);
+  if(ix>=0)SEG.layers[ix]=nl;else SEG.layers.push(nl);
+  return nl;
 }
 function segApply(full){
   const {w,h}=SEG.src;
   /* manual：用户亲手画/加减过的蒙版，边缘处理不能再自作主张（见 segPolishMask） */
   if(SEG.mode==='new'){const nl=segLayerFromFull(full,w,h);if(!nl){toast(t('eNoSel'));return}nl.tile=SEG.cur;nl.manual=true;SEG.layers.push(nl);SEG.sel=new Set([nl.id]);return}
+  /* 拆出一块：选区 ∩ 当前元素 → 独立的新元素；原元素只保留剩下的部分 */
+  if(SEG.mode==='split'){
+    const ts=segTargets(full);
+    if(!ts.length){toast(t('eNeedSel'));return}
+    let added=null;
+    for(const L of ts){
+      const cur=segFull(L);
+      const keep=new Uint8Array(cur.length),take=new Uint8Array(cur.length);let hit=0;
+      for(let i=0;i<cur.length;i++){if(cur[i]){if(full[i]){take[i]=1;hit++}else keep[i]=1}}
+      if(!hit)continue;
+      const ix=SEG.layers.indexOf(L);
+      const rest=segLayerFromFull(keep,w,h,L.name);
+      let at=ix;
+      if(rest){rest.color=L.color;rest.on=L.on;rest.tile=L.tile;rest.autoName=L.autoName;rest.manual=true;SEG.layers[ix]=rest;at=ix+1}
+      else SEG.layers.splice(ix,1);
+      const part=segLayerFromFull(take,w,h,t('splitPart',{n:L.name}));
+      if(part){part.color=L.color;part.on=true;part.tile=L.tile;part.manual=true;part.autoName=null;SEG.layers.splice(at,0,part);added=part}
+    }
+    if(!added){toast(t('eSplitNone'));return}
+    SEG.sel=new Set([added.id]);return;
+  }
   const ts=segTargets(full);
   if(!ts.length){toast(t(SEG.mode==='add'?'eNeedSel':'eNoHit'));return}
-  let last=null;
+  let last=null,changed=0;
   for(const L of ts){
-    const cur=segFull(L);
-    for(let i=0;i<cur.length;i++){if(SEG.mode==='add'){if(full[i])cur[i]=1}else if(full[i])cur[i]=0}
+    const cur=segFull(L);let ch=0;
+    for(let i=0;i<cur.length;i++){
+      if(SEG.mode==='add'){if(full[i]&&!cur[i]){cur[i]=1;ch++}}
+      else if(full[i]&&cur[i]){cur[i]=0;ch++}
+    }
+    if(!ch)continue;
     const nl=segLayerFromFull(cur,w,h,L.name),ix=SEG.layers.indexOf(L);
-    if(!nl){SEG.layers.splice(ix,1);SEG.sel.delete(L.id);continue}
-    nl.color=L.color;nl.on=L.on;nl.tile=L.tile;nl.autoName=L.autoName;nl.manual=true;SEG.layers[ix]=nl;last=nl;
+    if(!nl){SEG.layers.splice(ix,1);SEG.sel.delete(L.id);changed++;continue}
+    nl.color=L.color;nl.on=true;nl.tile=L.tile;nl.autoName=L.autoName;nl.manual=true;SEG.layers[ix]=nl;last=nl;changed++;
   }
+  if(!changed){toast(t('eNoChange'));return}
   SEG.sel=last?new Set([last.id]):new Set();
 }
 /* ── 边缘处理：补小缺口 + 润化边缘（默认开启） ──
@@ -345,8 +482,52 @@ function segCut(L,pad){
     id.data[d]=data[si];id.data[d+1]=data[si+1];id.data[d+2]=data[si+2];id.data[d+3]=Math.round(255*a*data[si+3]/255);
   }
   g.putImageData(id,0,0);
-  if(segEdgeOn())segSmoothEdge(g,W,H);
+  const soft=segSoftWidth();
+  if(soft>0)segSoftEdge(g,W,H,soft);
+  else if(segEdgeOn())segSmoothEdge(g,W,H);
   return(cache[p]={cv:c,px:L.bx-p,py:L.by-p});
+}
+/* ── 软边：把边缘羽化，并把半透明像素的颜色往内部颜色拉，减轻白边 / 黑边 ── */
+const segSoftWidth = () => {
+  const v = (typeof CFG !== 'undefined' && CFG && CFG.softEdge != null) ? +CFG.softEdge : 0;
+  return Number.isFinite(v) && v > 0 ? Math.min(6, Math.round(v)) : 0;
+};
+function segSoftEdge(g,W,H,r){
+  const id=g.getImageData(0,0,W,H),d=id.data,n=W*H;
+  const A=new Float32Array(n),R=new Float32Array(n),G=new Float32Array(n),B=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const a=d[i*4+3]/255;A[i]=a;
+    /* 只让「接近不透明」的像素参与内部颜色统计，避免边缘颜色把平均色带偏 */
+    if(a>.8){R[i]=d[i*4];G[i]=d[i*4+1];B[i]=d[i*4+2]}
+  }
+  const box=(src,horiz)=>{
+    const out=new Float32Array(n);
+    for(let o=0;o<(horiz?H:W);o++){
+      let sum=0;
+      for(let k=-r;k<=r;k++)sum+=src[horiz?o*W+Math.min(W-1,Math.max(0,k)):Math.min(H-1,Math.max(0,k))*W+o];
+      for(let i=0;i<(horiz?W:H);i++){
+        out[horiz?o*W+i:i*W+o]=sum/(2*r+1);
+        const add=Math.min((horiz?W:H)-1,i+r+1),sub=Math.max(0,i-r);
+        sum+=src[horiz?o*W+add:add*W+o]-src[horiz?o*W+sub:sub*W+o];
+      }
+    }
+    return out;
+  };
+  const a1=box(A,true),a2=box(a1,false);
+  const r1=box(R,true),r2=box(r1,false);
+  const g1=box(G,true),g2=box(g1,false);
+  const b1=box(B,true),b2=box(b1,false);
+  for(let i=0;i<n;i++){
+    const a=a2[i];
+    d[i*4+3]=Math.max(0,Math.min(255,Math.round(a*255)));
+    if(a>.01&&a<.98){
+      const f=(1-a)*.75;
+      d[i*4]=Math.round(d[i*4]*(1-f)+r2[i]*f);
+      d[i*4+1]=Math.round(d[i*4+1]*(1-f)+g2[i]*f);
+      d[i*4+2]=Math.round(d[i*4+2]*(1-f)+b2[i]*f);
+    }
+  }
+  g.putImageData(id,0,0);
 }
 /* ② 润化边缘：把 alpha 通道里 0~255 之间的过渡带再抹平一点，去掉台阶锯齿 */
 function segSmoothEdge(g,W,H){
@@ -471,7 +652,7 @@ function segAIWorker(){
      if(!model)throw lastErr||new Error(M.modelFail);
      postMessage({t:'ready'})}
    else if(m.t==='embed'){raw=await RI.fromBlob(m.blob);const inp=await proc(raw);emb=await model.get_image_embeddings(inp);postMessage({t:'embedded'})}
-   else if(m.t==='click'){const inputs=await proc(raw,{input_points:[[m.pts]]});const out=await model({...emb,...inputs});
+   else if(m.t==='click'){const opt={input_points:[[m.pts]]};if(m.labels&&m.labels.some(l=>!l))opt.input_labels=[[m.labels]];const inputs=await proc(raw,opt);const out=await model({...emb,...inputs});
      const masks=await proc.post_process_masks(out.pred_masks,inputs.original_sizes,inputs.reshaped_input_sizes);
      const t=masks[0],d=t.dims,H=d[d.length-2],W=d[d.length-1],sc=out.iou_scores.data;let bi=0;for(let i=1;i<sc.length;i++)if(sc[i]>sc[bi])bi=i;
      const o=new Uint8Array(W*H),off=bi*W*H;for(let i=0;i<W*H;i++)o[i]=t.data[off+i]?1:0;postMessage({t:'mask',m:o,W,H},[o.buffer])}
@@ -490,27 +671,48 @@ function segAIcall(msg,want,transfer){
     A.w.addEventListener('message',h);A.w.postMessage(msg,transfer||[]);
   });
 }
-async function segAIClick(x,y){
+async function segAIClick(x,y,neg){
   const A=segAIWorker();
   /* 导入新图时 segReset 会把 gen 加一：这期间还在跑的 embedding / 点击结果都作废，
      否则会用上一张图的 embedding 去算新图的蒙版（同尺寸时连尺寸检查都拦不住）。 */
   const gen=A.gen||0, stale=()=>A.gen!==gen;
+  /* 新点落在上一轮的图层外面 → 用户多半在点另一个东西，自动开一轮新的提示点 */
+  if(!neg&&SEG.aiLayer){
+    const L=SEG.layers.find(l=>l.id===SEG.aiLayer);
+    if(!L)SEG.aiLayer=null;
+    else if(x<L.bx-6||x>L.bx+L.bw+6||y<L.by-6||y>L.by+L.bh+6){SEG.aiPts=[];SEG.aiLayer=null}
+  }
+  if(neg&&!SEG.aiPts.some(p=>!p.neg)){toast(t('aiNeedPos'));return}
+  SEG.aiPts.push({x,y,neg:!!neg});
+  if(SEG.aiPts.length>16)SEG.aiPts.shift();
+  /* 先把提示点画出来：即使模型还在下载 / 失败，用户也能看到自己点了什么 */
+  segRender();
+  if(typeof segParams==='function')segParams();
   try{
     if(!A.ready){segBusy(aiCached()?t('aiSee'):t('aiLoad'));await segAIcall({t:'init'},'ready');A.ready=true;aiMarkReady()}
     if(stale())return;
     if(!A.embedded){segBusy(t('aiSee'));const bl=await new Promise(r=>SEG.src.cv.toBlob(r,'image/png'));await segAIcall({t:'embed',blob:bl},'embedded');if(stale())return;A.embedded=true}
-    segBusy(t('aiFind'));
-    const d=await segAIcall({t:'click',pts:[[x,y]]},'mask');
+    segBusy(SEG.aiPts.length>1?t('aiRefine',{n:SEG.aiPts.length}):t('aiFind'));
+    const d=await segAIcall({t:'click',pts:SEG.aiPts.map(p=>[p.x,p.y]),labels:SEG.aiPts.map(p=>p.neg?0:1)},'mask');
     segBusy('');
     if(stale())return;
     const {w,h}=SEG.src;if(d.W!==w||d.H!==h){toast(t('aiSize'));return}
-    segApply(d.m);segRender();
+    const target=SEG.aiLayer?SEG.layers.find(l=>l.id===SEG.aiLayer):null;
+    if(target){
+      /* 同一轮里继续点：直接替换这一层的蒙版，越点越准，不会越点越多层 */
+      const nl=segReplaceLayer(target,d.m);
+      if(nl){SEG.aiLayer=nl.id;SEG.sel=new Set([nl.id])}
+    }else{
+      segApply(d.m);
+      const id=[...SEG.sel][0]||null;SEG.aiLayer=id;
+    }
+    segRender();
   }catch(e){
-    segBusy('');console.warn(e);
+    segBusy('');console.warn(e);segRender();
     /* 浮点版在这台机器上起不来？自动换量化版重试一次 */
     if(aiFallbackToQ8()){
       toast(t('aiFallback'));
-      try{ SEG.ai=null; await segAIClick(x,y); }
+      try{ SEG.ai=null; SEG.aiPts.pop(); await segAIClick(x,y,neg); }
       catch(e2){ console.warn(e2); toast(t('aiFail',{e:String(e2.message||e2).slice(0,60)})); }
       return;
     }

@@ -6,12 +6,22 @@
 
 **Split every element out of a screenshot or image and save it as a transparent PNG sticker.**
 
-English · [简体中文](README.md)
+English · [简体中文](README.md) · [Web version](https://lertone.github.io/PixPeel/)
 
 </div>
 
 Press a hotkey → drag a region (or just click an element on screen) → elements are split automatically → pick the ones you want → saved to your library.
 Everything runs locally. No uploads, no account.
+
+## Web version (no install)
+
+Open **https://lertone.github.io/PixPeel/** in a browser:
+
+- **Extract**: import / paste / built-in sample, auto split, pick, wand, optional AI pick (SlimSAM).
+- **Library**: sign in with a local nickname to keep elements per account; multi-select, download, delete.
+- **Board**: images, text and basic shapes, move / scale / rotate, export PNG, auto-save.
+- Three areas in the top bar, works on phones; images stay in the browser and data lives in IndexedDB, never uploaded.
+- The desktop app handles system-wide capture, click-pick, batch splitting and HD repair; the web version is for opening anywhere and quickly splitting or composing.
 
 ## Features
 
@@ -20,10 +30,11 @@ Everything runs locally. No uploads, no account.
 - **Click-to-extract mode**: the screen stays as it is; hover highlights an element, click saves it straight to the library. Click as many as you like.
 - **Import images**: button, drag & drop, or `Ctrl+V`.
 - **Refine tools**: Pick / Wand / Lasso / AI pick (optional, downloads a small model on first use and falls back to the hf-mirror.com mirror in China); export layered SVG. Two AI models to choose from: **quantized** (default — small, fast, light on memory) and **full precision** (slightly more accurate, roughly twice the download and memory). Switch in Settings.
-- **Element preview**: every element card has a zoom button in its bottom-right corner. It opens a panel with a vertical strip of thumbnails on the left and one enlarged element on the right — scroll the strip with the wheel or step with ↑ ↓ / PageUp / PageDown, toggle the current element with Space (the same state as the element list), and close with Esc.
-- **Board**: compose pictures from library elements or imported images; pick canvas size and transparent / solid background; move, scale, rotate, delete; export PNG / JPG or save back to the library. Add **text** (system fonts — Hei / Song / Kai / serif / mono — with size, line height, letter spacing, colour, bold, italic and left/centre/right alignment; double-click text on the canvas to edit it) that stays vector-sharp at any zoom and on export, and **align** elements (left / centre / right / top / middle / bottom, relative to the canvas or to the selection) or **centre them** in one click. Alignment uses the actual pixel edges, not the PNG's transparent box.
+- **Element preview**: every element card has a zoom button in its bottom-right corner. It opens a panel with a vertical strip of thumbnails on the left and one enlarged element on the right — scroll to zoom around the pointer, middle-drag to pan, double-click to reset; scroll the strip or step with ↑ ↓ / PageUp / PageDown, toggle the current element with Space (the same state as the element list), and close with Esc. The eraser button lets you paint away unwanted parts with an adjustable brush, and Ctrl+Z (or the ↶ button) undoes the last stroke.
+- **Board**: compose pictures from library elements or imported images; pick canvas size and a transparent / solid / image background (the image always sits at the very bottom, cover or contain) with a screen eyedropper for colours. Dragging an element near a canvas edge, a centre line or another element's real pixel edge snaps it into place with dashed guides. Add **text** with eight bundled open-source fonts, import your own local fonts or download more in-app; size, line height, letter spacing, angle and scale all have sliders, and scrolling over a slider or number field adjusts it. New text inherits the last font and style. With a single element selected, the small “↑” at the top-right brings it to the front and the “↓” at the bottom-right sends it to the back. A preview button opens a board-element preview just like the Extract page preview — no checkboxes, and image elements can be erased too. The left material panel can be dragged wider; material tiles gain preview / delete buttons on hover and can be resized with Ctrl+wheel or the − / + buttons in the header. Export PNG / JPG or save back to the library.
+- **Adjustable workspace**: drag the divider between the Extract stage and the element panel to fit more columns; resize the Library cards with Ctrl+wheel or the − / + buttons; collapse the left navigation rail into a slim strip and the main area grows to fill the space. All widths and zoom levels are remembered.
 - **Undo / zoom / shortcuts**: Ctrl+Z / Ctrl+Shift+Z on both the Extract page and the Board, wheel zoom, Space-drag pan; every shortcut is listed in Settings.
-- **Enhance**: the library flags low-res items and upscales + sharpens them locally (classical resampling, not generative AI), saving a new `-HD` file and keeping the original. On top of Lanczos and unsharp masking it now does iterative back-projection and de-fringing, so edges look tighter and halos are less visible.
+- **Enhance**: the library flags low-res items and upscales + sharpens them locally, saving a new `-HD` file and keeping the original. Since 1.3.0 the manual “HD” button uses a bundled Real-ESRGAN general 4x model (about 4.8 MB, shipped with the installer, WebGPU first, fully offline), so text and edges on small elements stay much sharper; automatic HD on save keeps the fast classical path, and the model can be switched off in Settings.
 - **Edge smoothing**: on export, small gaps along the edge are filled, enclosed holes are closed and the alpha transition is smoothed — no more broken outlines or stair-stepped jaggies. Pure local math; can be switched off in Settings. The “Gap repair width” setting controls how wide a break may be (4 px by default); the wider, the more likely two very close elements get merged.
 - **Library**: click to copy, reveal in folder, delete (to trash) — with a 3-second “Undo” prompt, and a one-click “Clear” (also undoable).
 - **SVG Library / SVG Canvas**: layered SVGs live in their own SVG library. In the SVG canvas you can show/hide, move, scale, rotate and fade each layer, and export any single layer as a transparent PNG back into the element library. Marquee-select several layers, delete them together, drag the corners to scale, the top dot to rotate, and use the middle button to pan.
@@ -32,6 +43,13 @@ Everything runs locally. No uploads, no account.
 - Lives in the tray, optional launch at login, notification after saving (click it to open the library).
 - **Auto-update**: on Windows and Linux AppImage, Settings can download and install a new version for you — restart and it is done, with your library and settings kept. macOS and deb / rpm still open the download page. Downloads only start when you click; the app never pulls installers in the background.
 - 简体中文 / English, light / dark / system theme.
+
+## Demo videos
+
+- [YouTube: PixPeel demo](https://youtu.be/6ow4Iso6wtw)
+- [Bilibili: PixPeel — the cutout tool I made](https://www.bilibili.com/video/BV1xpsv6rEKJ/)
+- [X / Twitter: PixPeel introduction](https://x.com/lertonezxy9/status/2122906141684609512)
+- [Douyin: PixPeel — the cutout tool I made](https://v.douyin.com/FKHvotvc4-Q/)
 
 ## Download
 

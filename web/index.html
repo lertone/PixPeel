@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PixPeel 网页版 — 把图剥开，一个个拿走</title>
+<meta name="description" content="PixPeel 网页版：导入截图，自动拆出按钮、图标、文字和贴纸，存进元素库，直接在画板拼图。图片只在浏览器本地处理，手机也能用。">
+<meta property="og:title" content="PixPeel 网页版 — 把图剥开，一个个拿走">
+<meta property="og:description" content="自动拆元素 · 元素库 · 画板。免安装，图片不上传。">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#ff5a2a">
+<link rel="icon" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="preload" href="assets/fonts/BebasNeue-Regular.ttf" as="font" type="font/ttf" crossorigin>
+<script>
+  try {
+    var t = localStorage.getItem('pp_web_theme');
+    if (!t && matchMedia('(prefers-color-scheme: dark)').matches) t = 'dark';
+    if (t) document.documentElement.dataset.theme = t;
+  } catch (e) { }
+</script>
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+<a class="skip" href="#main">跳到主要内容</a>
+
+<header class="top" id="top">
+  <a class="brand" href="#home" aria-label="PixPeel 首页">
+    <img src="assets/icon.png" alt="" width="36" height="36">
+    <span class="brandName">PixPeel</span>
+    <em class="webTag">WEB</em>
+  </a>
+
+  <nav class="tabs" id="tabs" aria-label="主导航">
+    <a href="#home" data-view="home" class="on">主页</a>
+    <a href="#extract" data-view="extract">拆元素</a>
+    <a href="#library" data-view="library">元素库<span class="tabCount" id="tabCount" hidden>0</span></a>
+  </nav>
+
+  <div class="topActions">
+    <a class="ghostBtn hideSm" href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer" aria-label="GitHub">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6a9.4 9.4 0 0 0-3 18.3c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.2-3.4-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.6s.8-.3 2.7 1a9.3 9.3 0 0 1 4.9 0c1.9-1.3 2.7-1 2.7-1 .6 1.3.2 2.4.1 2.6a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5A9.4 9.4 0 0 0 12 2.6z" fill="currentColor"/></svg>
+    </a>
+    <button class="iconBtn" id="themeBtn" type="button" aria-label="切换深色 / 浅色" title="切换深色 / 浅色">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <button class="userChip" id="userChip" type="button">
+      <span class="avatar" id="userAvatar">游</span>
+      <span class="userName" id="userName">登录</span>
+    </button>
+    <a class="btn small primary hideSm" href="https://github.com/lertone/PixPeel/releases/latest" target="_blank" rel="noreferrer">下载桌面版</a>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ═══════════════ 主页 ═══════════════ -->
+  <section class="view home on" data-view="home">
+    <div class="hero">
+      <div class="heroCopy">
+        <p class="kicker"><i></i> 网页版 · 免安装 · 图片不上传</p>
+        <h1>把图<span class="mark">剥开</span><br>一个个拿走。</h1>
+        <p class="lede">导入一张截图，PixPeel 会沿着边缘把按钮、图标、文字和贴纸拆下来，存成透明底 PNG。然后去元素库收好，或者直接拖进画板拼一张新的。</p>
+        <div class="heroCtas">
+          <a class="btn primary big" href="#extract">开始拆元素
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <button class="btn line big" id="heroSample" type="button">先看示例</button>
+        </div>
+        <ul class="facts">
+          <li><b>0</b> 张图片上传</li>
+          <li><b>60</b> 个元素 / 张</li>
+          <li><b>3</b> 个区域：拆 · 收 · 拼</li>
+        </ul>
+      </div>
+
+      <div class="heroArt" id="heroArt" aria-label="PixPeel 界面与拆出的贴纸">
+        <div class="artGlow"></div>
+        <div class="appFrame">
+          <div class="appBar"><i></i><i></i><i></i><span>PixPeel — 拆元素</span><b>本地</b></div>
+          <img src="assets/app.png" alt="PixPeel 桌面版界面：一张 MISTVALE 海报被拆成多个元素" loading="eager">
+          <span class="scanLine"></span>
+        </div>
+        <figure class="floatSticker s1"><img src="assets/el-badge.png" alt="拆出的 NEW 圆形徽章"><figcaption>徽章 · 198×198</figcaption></figure>
+        <figure class="floatSticker s2"><img src="assets/el-btn.png" alt="拆出的开始游戏按钮"><figcaption>按钮 · 272×90</figcaption></figure>
+        <figure class="floatSticker s3"><img src="assets/el-card.png" alt="拆出的说明文字"><figcaption>文字 · 一字不糊</figcaption></figure>
+        <figure class="floatSticker s4"><img src="assets/el-avatar.png" alt="拆出的圆形色块"><figcaption>图形 · 透明底</figcaption></figure>
+        <div class="floatChip"><span class="dot"></span> 正在本地拆解 <b id="heroCount">7</b> 个元素</div>
+      </div>
+    </div>
+
+    <div class="marquee" aria-hidden="true">
+      <div class="marqueeTrack">
+        <span>按钮</span><i></i><span>图标</span><i></i><span>文字</span><i></i><span>商品图</span><i></i><span>UI 组件</span><i></i><span>人物</span><i></i><span>贴纸</span><i></i><span>徽章</span><i></i><span>线条</span><i></i>
+        <span>按钮</span><i></i><span>图标</span><i></i><span>文字</span><i></i><span>商品图</span><i></i><span>UI 组件</span><i></i><span>人物</span><i></i><span>贴纸</span><i></i><span>徽章</span><i></i><span>线条</span><i></i>
+      </div>
+    </div>
+
+    <section class="section steps">
+      <div class="secHead">
+        <p class="eyebrow">HOW IT WORKS</p>
+        <h2>一张图，三步。<br>不用钢笔，不用一层层抠。</h2>
+      </div>
+      <div class="stepGrid">
+        <article class="stepCard">
+          <span class="stepNo">01</span>
+          <div class="stepArt dropArt">
+            <img src="assets/app.png" alt="">
+            <span class="dashBox"></span>
+            <span class="dropTag">拖进来 / Ctrl+V</span>
+          </div>
+          <h3>导入</h3>
+          <p>截图、海报、商品图、游戏界面都行。拖进来、粘贴，或者先用内置示例。</p>
+        </article>
+        <article class="stepCard">
+          <span class="stepNo">02</span>
+          <div class="stepArt splitArt">
+            <img src="assets/app.png" alt="">
+            <span class="dashBox b2"></span>
+            <span class="splitTag">自动拆成 7 个</span>
+          </div>
+          <h3>拆开</h3>
+          <p>自动识别背景色和连通区域，边缘带抗锯齿。没拆对的，用点选、魔棒或 AI 点选补一刀。</p>
+        </article>
+        <article class="stepCard">
+          <span class="stepNo">03</span>
+          <div class="stepArt saveArt">
+            <div class="miniStickers"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
+            <span class="saveTag">→ 元素库</span>
+          </div>
+          <h3>收好，再拼</h3>
+          <p>选中元素存进元素库，随时下载透明 PNG；也可以在画板里加文字、形状，拼成新的海报。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section bento">
+      <div class="bentoHead">
+        <p class="eyebrow">NOT JUST A SPLITTER</p>
+        <h2>拆完之后，还有一个完整的<br>网页工作台。</h2>
+        <p class="secNote">三个区域都在顶部，随时切换。登录后，元素库和画板会暂存在这台设备。</p>
+      </div>
+      <div class="bentoGrid">
+        <article class="bentoCard wide extractCard">
+          <div class="bcCopy">
+            <span class="bcKicker">01 / 拆元素</span>
+            <h3>自动拆，也能手动补</h3>
+            <p>自动判断背景、按颜色聚类，或点一下直接取出。参数可调，拆完立刻看到透明底效果。可选 SlimSAM 轻量模型，点哪拆哪。</p>
+            <a class="textLink" href="#extract">开始拆 <span>→</span></a>
+          </div>
+          <div class="bcArt">
+            <div class="elRow">
+              <img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-card.png" alt=""><img src="assets/el-avatar.png" alt="">
+            </div>
+            <div class="paramPills"><span>背景容差 40</span><span>合并 6px</span><span>抗锯齿 开</span></div>
+          </div>
+        </article>
+
+        <article class="bentoCard libCard">
+          <span class="bcKicker">02 / 元素库</span>
+          <h3>拆下来的，收进库</h3>
+          <p>登录后按账号暂存，刷新不丢。多选、下载、删除，一键送进画板。</p>
+          <div class="stickerGrid" aria-hidden="true">
+            <span><img src="assets/el-badge.png" alt=""></span><span><img src="assets/el-btn.png" alt=""></span><span><img src="assets/el-avatar.png" alt=""></span><span><img src="assets/el-card.png" alt=""></span>
+          </div>
+          <a class="textLink" href="#library">打开元素库 <span>→</span></a>
+        </article>
+
+        <article class="bentoCard boardCard">
+          <span class="bcKicker">03 / 画板</span>
+          <h3>元素库兼容画板</h3>
+          <p>图片、文字、形状都能进画板。拖、缩、转，导出 PNG；画板自动存档。</p>
+          <div class="boardMini" aria-hidden="true">
+            <span class="bmText">MAKE<br><em>IT</em><br>STICK</span>
+            <img src="assets/el-badge.png" alt="">
+            <span class="bmShape"></span>
+            <span class="bmLayer">3 layers</span>
+          </div>
+          <a class="textLink" href="#board">去画板 <span>→</span></a>
+        </article>
+
+        <article class="bentoCard focusCard">
+          <span class="bcKicker">FULL SCREEN</span>
+          <h3>藏起面板，<br>只剩画布。</h3>
+          <p>拆元素、元素库、画板都能一键全屏。手机上也一样，面板收到底部，画布占满。</p>
+          <div class="focusArt" aria-hidden="true">
+            <span class="faPanel"></span><span class="faCanvas"></span><span class="faPanel r"></span>
+            <b>⛶</b>
+          </div>
+        </article>
+
+        <article class="bentoCard privacyCard">
+          <span class="bcKicker">PRIVATE BY DEFAULT</span>
+          <h3>图片不离开浏览器。</h3>
+          <p>拆元素在本地内存完成；元素库和画板存在浏览器 IndexedDB。没有上传接口，也没有云端副本。</p>
+          <div class="privacyArt" aria-hidden="true">
+            <svg viewBox="0 0 100 116"><path d="M50 6l38 15v32c0 26-16 45-38 55C28 98 12 79 12 53V21L50 6z" fill="none" stroke="currentColor" stroke-width="3.5"/><path d="M32 55l13 13 24-27" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span>不上传</span><span>不要账号</span><span>本机暂存</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section videos">
+      <div class="secHead row">
+        <div>
+          <p class="eyebrow">WATCH IT WORK</p>
+          <h2>看一遍，就会了。</h2>
+        </div>
+        <p class="secNote">作者实拍：拆元素、元素库、画板，一条视频走完。</p>
+      </div>
+      <div class="videoGrid">
+        <div class="videoMain">
+          <iframe src="https://player.bilibili.com/player.html?bvid=BV1xpsv6rEKJ&page=1&high_quality=1&danmaku=0&autoplay=0" title="PixPeel 我做的抠图神器 — Bilibili" loading="lazy" allowfullscreen scrolling="no"></iframe>
+        </div>
+        <div class="videoSide">
+          <a class="videoCard xCard" href="https://x.com/lertonezxy9/status/2122906141684609512" target="_blank" rel="noreferrer">
+            <span class="vcTag">X / Twitter</span>
+            <b>PixPeel 介绍</b>
+            <p>在 X 上看作者发布的功能演示与更新。</p>
+            <span class="vcGo">打开视频 →</span>
+          </a>
+          <a class="videoCard dyCard" href="https://v.douyin.com/FKHvotvc4-Q/" target="_blank" rel="noreferrer">
+            <span class="vcTag">抖音</span>
+            <b>PixPeel — 我做的抠图神器</b>
+            <p>竖屏快速演示：一张图怎么变成一堆贴纸。</p>
+            <span class="vcGo">打开视频 →</span>
+          </a>
+          <a class="videoCard ytCard" href="https://youtu.be/6ow4Iso6wtw" target="_blank" rel="noreferrer">
+            <span class="vcTag">YouTube</span>
+            <b>PixPeel 演示</b>
+            <p>给朋友看的完整介绍：从拆元素到画板。</p>
+            <span class="vcGo">打开视频 →</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section eco">
+      <div class="ecoHead">
+        <p class="eyebrow">ONE ECOSYSTEM</p>
+        <h2>桌面版、网页版、小剪动画，<br>都在一个生态里。</h2>
+      </div>
+      <div class="ecoRing">
+        <a class="ecoItem main" href="#extract">
+          <img src="assets/icon.png" alt="">
+          <b>网页版</b><span>免安装 · 拆 / 收 / 拼</span>
+        </a>
+        <a class="ecoItem" href="https://github.com/lertone/PixPeel/releases/latest" target="_blank" rel="noreferrer">
+          <span class="ecoIco">⌘</span><b>桌面版</b><span>Windows · macOS · Linux</span>
+        </a>
+        <a class="ecoItem" href="https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html" target="_blank" rel="noreferrer">
+          <span class="ecoIco">✂</span><b>小剪动画</b><span>单文件网页动画编辑器</span>
+        </a>
+        <a class="ecoItem" href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer">
+          <span class="ecoIco">◉</span><b>开源仓库</b><span>代码 · 更新日志 · 反馈</span>
+        </a>
+        <a class="ecoItem" href="https://youtu.be/6ow4Iso6wtw" target="_blank" rel="noreferrer">
+          <span class="ecoIco">▶</span><b>视频</b><span>YouTube · X · B 站 · 抖音</span>
+        </a>
+      </div>
+      <p class="ecoNote">桌面版负责系统级框选、点选和批量拆分；网页版负责随时打开、快速拆和拼；小剪动画接住拆出来的贴纸做动画。同一套素材，三个地方都能用。</p>
+    </section>
+
+    <section class="section download">
+      <div class="dlCard">
+        <div class="dlCopy">
+          <p class="eyebrow">GET THE DESKTOP APP</p>
+          <h2>需要框选屏幕、批量拆图？<br>装桌面版。</h2>
+          <p>Windows / macOS / Linux，本机处理，免费非商用。网页版适合随时拆一张、拼一张；桌面版适合把整套工作流搬到系统里。</p>
+          <div class="dlBtns">
+            <a class="btn primary big" href="https://github.com/lertone/PixPeel/releases/latest" target="_blank" rel="noreferrer">前往下载</a>
+            <a class="btn line big" href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer">查看源码</a>
+          </div>
+          <p class="fine">安装包未做商业代码签名，Windows 提示“未知发布者”属正常现象。许可：PolyForm Noncommercial 1.0.0。</p>
+        </div>
+        <div class="dlArt" aria-hidden="true">
+          <img src="assets/icon.png" alt="">
+          <div class="dlOrbit"><span>PNG</span><span>SVG</span><span>HD</span><span>BOARD</span></div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ═══════════════ 拆元素 ═══════════════ -->
+  <section class="view appView" data-view="extract">
+    <div class="workTop">
+      <div class="wtLeft">
+        <span class="wtTitle">拆元素</span>
+        <span class="wtStatus" id="exStatus">等待导入一张图</span>
+      </div>
+      <div class="wtRight">
+        <button class="btn tiny" id="exSample" type="button">示例</button>
+        <button class="btn tiny primary" id="exImport" type="button">导入图片</button>
+        <button class="btn tiny" id="exSaveAll" type="button">全部入库</button>
+        <button class="iconBtn" id="exFocus" type="button" title="全屏专注" aria-label="全屏专注">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="exShell" id="exShell">
+      <aside class="exRail" aria-label="拆元素工具">
+        <button class="railBtn main" id="exImport2" type="button"><span class="rbIco">＋</span><span>导入</span></button>
+        <button class="railBtn" id="exSample2" type="button"><span class="rbIco">◎</span><span>示例</span></button>
+        <div class="railLine"></div>
+        <button class="railBtn tool on" data-tool="pick" type="button"><span class="rbIco">✥</span><span>点选</span></button>
+        <button class="railBtn tool" data-tool="wand" type="button"><span class="rbIco">✦</span><span>魔棒</span></button>
+        <button class="railBtn tool ai" data-tool="ai" type="button"><span class="rbIco">AI</span><span>AI 点选</span></button>
+        <div class="railSpacer"></div>
+        <button class="railBtn ghost" id="exClear" type="button"><span class="rbIco">⌫</span><span>清空</span></button>
+      </aside>
+
+      <div class="exStageWrap">
+        <div class="exStage" id="exDrop" tabindex="0" role="button" aria-label="导入图片">
+          <div class="exEmpty" id="exEmpty">
+            <div class="exEmptyArt">
+              <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="10" width="48" height="44" rx="7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-dasharray="6 5"/><path d="M23 34l9-9 9 9M32 25v17" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <b>把截图拖进来</b>
+            <p>或点击选择 · 支持 Ctrl+V 粘贴 · 手机可从相册选</p>
+            <button class="btn primary" id="exSample3" type="button">先用示例图试试</button>
+            <span class="exPrivacy">图片只在浏览器内存里处理，不会上传</span>
+          </div>
+          <div class="exCanvasWrap" id="exCanvasWrap" hidden>
+            <canvas id="exCanvas"></canvas>
+            <div class="exBusy" id="exBusy" hidden><span class="spinner"></span><b id="exBusyText">处理中</b></div>
+          </div>
+        </div>
+        <div class="exBar">
+          <div class="exZoom">
+            <button id="exZoomOut" type="button" aria-label="缩小">−</button>
+            <span id="exZoomLabel">100%</span>
+            <button id="exZoomIn" type="button" aria-label="放大">+</button>
+            <button id="exFit" type="button">适应</button>
+          </div>
+          <span class="exHint" id="exHint">点画面上的元素，可以直接拆出来</span>
+          <button class="btn tiny" id="exSheetToggle" type="button">元素 <b id="exSheetCount">0</b></button>
+        </div>
+        <div class="exMobileStrip" id="exMobileStrip"></div>
+      </div>
+
+      <aside class="exInspector" id="exInspector">
+        <div class="exTabs">
+          <button class="on" data-panel="params" type="button">参数</button>
+          <button data-panel="els" type="button">元素 <b id="exCount">0</b></button>
+          <button class="exSheetClose" id="exSheetClose" type="button" aria-label="收起">×</button>
+        </div>
+        <div class="exPanel on" data-panel="params">
+          <div class="field">
+            <label for="exHow">拆分方式</label>
+            <select id="exHow">
+              <option value="auto">自动判断</option>
+              <option value="bg">只按背景色</option>
+              <option value="color">颜色聚类</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="exTol"><span>背景容差</span><output id="exTolV">40</output></label>
+            <input id="exTol" type="range" min="8" max="120" step="1" value="40">
+          </div>
+          <div class="field">
+            <label for="exMerge"><span>合并距离</span><output id="exMergeV">6</output></label>
+            <input id="exMerge" type="range" min="0" max="40" step="1" value="6">
+          </div>
+          <div class="field">
+            <label for="exMinA"><span>最小面积</span><output id="exMinAV">0.15%</output></label>
+            <input id="exMinA" type="range" min="0.02" max="5" step="0.01" value="0.15">
+          </div>
+          <div class="field colorOnly" hidden>
+            <label for="exK"><span>颜色数</span><output id="exKV">6</output></label>
+            <input id="exK" type="range" min="2" max="12" step="1" value="6">
+          </div>
+          <div class="field">
+            <label for="exWtol"><span>点选容差</span><output id="exWtolV">32</output></label>
+            <input id="exWtol" type="range" min="6" max="120" step="1" value="32">
+          </div>
+          <label class="switchRow"><input type="checkbox" id="exEdge" checked><span>边缘抗锯齿</span></label>
+          <label class="switchRow"><input type="checkbox" id="exBoxes" checked><span>在图上标出拆出的区域</span></label>
+          <button class="btn wide" id="exResplit" type="button">重新拆分</button>
+
+          <div class="aiBox">
+            <div class="aiHead"><b>AI 点选</b><span>SlimSAM · 本地</span></div>
+            <p id="exAiStatus">轻量模型约 13 MB，首次使用后缓存；不联网也能用自动拆分。</p>
+            <div class="aiProgress"><i id="exAiFill"></i></div>
+            <button class="btn wide ghost" id="exAiLoad" type="button">加载 AI 模型</button>
+          </div>
+        </div>
+        <div class="exPanel" data-panel="els">
+          <div class="elTools">
+            <button id="exSelAll" type="button">全选</button>
+            <button id="exSelNone" type="button">全不选</button>
+            <button class="accent" id="exSaveSel" type="button">保存选中</button>
+            <button id="exDownloadSel" type="button">下载</button>
+          </div>
+          <div class="elList" id="exList">
+            <p class="elEmpty">拆出来的元素会出现在这里。<br>点画布上的元素也可以直接取出。</p>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <input id="exFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden>
+  </section>
+
+  <!-- ═══════════════ 元素库 + 画板 ═══════════════ -->
+  <section class="view appView" data-view="library">
+    <div class="libTop">
+      <div class="libTitleWrap">
+        <span class="wtTitle">元素库</span>
+        <span class="wtStatus" id="libStatus">本机暂存</span>
+        <span class="countPill" id="libCount">0</span>
+      </div>
+      <div class="libSwitch" role="tablist" aria-label="元素库与画板">
+        <button class="on" data-mode="lib" type="button">元素库</button>
+        <button data-mode="board" type="button">画板</button>
+      </div>
+      <div class="libTopActions">
+        <button class="btn tiny" id="libSelectMode" type="button">多选</button>
+        <button class="btn tiny primary" id="libGoBoard" type="button">去画板</button>
+        <button class="iconBtn" id="libFocus" type="button" title="全屏专注" aria-label="全屏专注">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- 元素库 -->
+    <div class="libPanel on" id="libPanel">
+      <div class="libToolbar">
+        <div class="libSearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <input id="libSearch" type="text" placeholder="搜元素名字…" autocomplete="off">
+        </div>
+        <div class="libSelTools" id="libSelTools" hidden>
+          <span id="libSelCount">已选 0</span>
+          <button class="btn tiny" id="libSelAll" type="button">全选</button>
+          <button class="btn tiny" id="libAddBoard" type="button">加入画板</button>
+          <button class="btn tiny" id="libDownload" type="button">下载</button>
+          <button class="btn tiny danger" id="libDelete" type="button">删除</button>
+        </div>
+        <div class="libMeta" id="libMeta">0 个元素</div>
+      </div>
+      <div class="libGrid" id="libGrid"></div>
+      <div class="libEmpty" id="libEmpty">
+        <div class="libEmptyArt"><img src="assets/el-badge.png" alt=""><img src="assets/el-btn.png" alt=""><img src="assets/el-avatar.png" alt=""></div>
+        <b>元素库还是空的</b>
+        <p>去拆一张图，或者把图片直接拖到这里存成元素。</p>
+        <button class="btn primary" id="libGoExtract" type="button">去拆元素</button>
+      </div>
+      <div class="libDropHint" id="libDropHint">松开，直接存进元素库</div>
+    </div>
+
+    <!-- 画板 -->
+    <div class="boardPanel" id="boardPanel">
+      <div class="bdTop">
+        <div class="bdTopLeft">
+          <select id="bdSize" aria-label="画布尺寸">
+            <option value="1080x1080">1080 × 1080</option>
+            <option value="1080x1350">1080 × 1350</option>
+            <option value="1920x1080">1920 × 1080</option>
+            <option value="1080x1920">1080 × 1920</option>
+            <option value="1200x800">1200 × 800</option>
+            <option value="custom">自定义…</option>
+          </select>
+          <label class="bgPick" title="画布背景"><input type="color" id="bdBg" value="#f7f4ed"><span>背景</span></label>
+          <button class="btn tiny" id="bdBgClear" type="button">透明</button>
+          <button class="btn tiny" id="bdUpload" type="button">导入图片</button>
+          <button class="btn tiny" id="bdText" type="button">文字</button>
+          <div class="shapeMenuWrap">
+            <button class="btn tiny" id="bdShapeBtn" type="button">形状 ▾</button>
+            <div class="shapeMenu" id="bdShapeMenu">
+              <button data-shape="rect" type="button">矩形</button>
+              <button data-shape="round" type="button">圆角矩形</button>
+              <button data-shape="ellipse" type="button">椭圆</button>
+              <button data-shape="triangle" type="button">三角形</button>
+              <button data-shape="star" type="button">星形</button>
+              <button data-shape="line" type="button">线条</button>
+              <button data-shape="arrow" type="button">箭头</button>
+            </div>
+          </div>
+          <button class="btn tiny" id="bdAssetsBtn" type="button">素材库</button>
+        </div>
+        <div class="bdTopRight">
+          <button class="iconBtn" id="bdUndo" type="button" title="撤回 (Ctrl+Z)" aria-label="撤回">↶</button>
+          <button class="iconBtn" id="bdRedo" type="button" title="重做 (Ctrl+Shift+Z)" aria-label="重做">↷</button>
+          <button class="btn tiny" id="bdClear" type="button">清空</button>
+          <button class="btn tiny primary" id="bdExport" type="button">导出 PNG</button>
+          <button class="iconBtn" id="bdFocus" type="button" title="全屏专注" aria-label="全屏专注">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="bdMain">
+        <aside class="bdAssets" id="bdAssets">
+          <div class="bdSideHead"><b>素材</b><span id="bdAssetsCount">0</span><button class="sideX" data-close-side type="button" aria-label="收起">×</button></div>
+          <div class="bdAssetGrid" id="bdAssetGrid"></div>
+          <p class="bdSideEmpty" id="bdAssetsEmpty">元素库还是空的。<br>先去拆一张图。</p>
+        </aside>
+
+        <div class="bdStageWrap" id="bdStageWrap">
+          <div class="bdStage" id="bdStage">
+            <canvas id="bdCanvas"></canvas>
+            <div class="bdHandles" id="bdHandles" hidden></div>
+          </div>
+        </div>
+
+        <aside class="bdLayers" id="bdLayers">
+          <div class="bdSideHead"><b>图层</b><span id="bdLayerCount">0</span><button class="sideX" data-close-side type="button" aria-label="收起">×</button></div>
+          <div class="bdLayerList" id="bdLayerList"></div>
+          <div class="bdProps" id="bdProps"></div>
+        </aside>
+      </div>
+      <div class="bdMobileBar">
+        <button class="btn tiny" id="bdAssetsMobile" type="button">素材</button>
+        <button class="btn tiny" id="bdLayersMobile" type="button">图层</button>
+        <span class="sp"></span>
+        <button class="btn tiny" id="bdExportMobile" type="button">导出</button>
+      </div>
+      <input id="bdFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="footMain">
+    <div class="footBrand">
+      <img src="assets/icon.png" alt="" width="34" height="34">
+      <div><b>PixPeel</b><span>把图剥开，一个个拿走。</span></div>
+    </div>
+    <div class="footCols">
+      <div><b>产品</b><a href="#extract">拆元素</a><a href="#library">元素库</a><a href="#board">画板</a></div>
+      <div><b>生态</b><a href="https://github.com/lertone/PixPeel/releases/latest" target="_blank" rel="noreferrer">桌面版下载</a><a href="https://github.com/lertone/PixPeel/releases/latest/download/xiaoji-animation.html" target="_blank" rel="noreferrer">小剪动画</a><a href="https://github.com/lertone/PixPeel" target="_blank" rel="noreferrer">GitHub</a></div>
+      <div><b>视频</b><a href="https://x.com/lertonezxy9/status/2122906141684609512" target="_blank" rel="noreferrer">X / Twitter</a><a href="https://www.bilibili.com/video/BV1xpsv6rEKJ/" target="_blank" rel="noreferrer">Bilibili</a><a href="https://v.douyin.com/FKHvotvc4-Q/" target="_blank" rel="noreferrer">抖音</a><a href="https://youtu.be/6ow4Iso6wtw" target="_blank" rel="noreferrer">YouTube</a></div>
+      <div><b>支持</b><a href="https://ko-fi.com/lertone" target="_blank" rel="noreferrer">Ko-fi</a><a href="https://ifdian.net/a/lt20061229" target="_blank" rel="noreferrer">爱发电</a><a href="https://github.com/lertone/PixPeel/blob/main/docs/PRIVACY.zh-CN.md" target="_blank" rel="noreferrer">隐私说明</a></div>
+    </div>
+  </div>
+  <div class="footBase">
+    <span>© 2026 PixPeel · PolyForm Noncommercial 1.0.0</span>
+    <span>网页版图片只在浏览器本地处理 · 元素库暂存在本机</span>
+  </div>
+</footer>
+
+<!-- 退出全屏 -->
+<button class="exitFocus" id="exitFocus" type="button" hidden>退出全屏 <kbd>Esc</kbd></button>
+
+<!-- 登录 / 账号 -->
+<div class="modal" id="loginModal" hidden>
+  <div class="modalCard loginCard" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <button class="modalX" data-close type="button" aria-label="关闭">×</button>
+    <div class="loginArt"><img src="assets/icon.png" alt=""><span>本机账号</span></div>
+    <h2 id="loginTitle">登录 PixPeel 网页版</h2>
+    <p class="loginNote">登录后，元素库和画板会按昵称暂存在这台设备。没有服务器，没有上传，换设备不会同步；清除浏览器数据会一起清掉。</p>
+    <label class="loginField"><span>昵称</span><input id="loginName" type="text" maxlength="24" placeholder="比如：小林" autocomplete="nickname"></label>
+    <label class="loginCheck" id="mergeWrap"><input type="checkbox" id="loginMerge" checked><span>把当前游客数据合并进来</span></label>
+    <button class="btn primary wide" id="loginGo" type="button">进入</button>
+    <button class="loginGuest" id="loginGuest" type="button">先以游客身份用</button>
+    <p class="loginFoot" id="loginFoot">游客数据也会保存在本机，登录后可以合并。</p>
+  </div>
+</div>
+
+<!-- 账号菜单 -->
+<div class="modal" id="accountModal" hidden>
+  <div class="modalCard accountCard" role="dialog" aria-modal="true">
+    <button class="modalX" data-close type="button" aria-label="关闭">×</button>
+    <div class="acctHead"><span class="avatar big" id="acctAvatar">游</span><div><b id="acctName">游客</b><span id="acctMeta">数据暂存在本机</span></div></div>
+    <div class="acctStats"><span><b id="acctItems">0</b> 个元素</span><span><b id="acctSize">0 MB</b> 已用</span></div>
+    <button class="btn wide" id="acctSwitch" type="button">切换 / 登录账号</button>
+    <button class="btn wide ghost" id="acctLogout" type="button">退出到游客</button>
+    <button class="btn wide danger ghost" id="acctWipe" type="button">清除这个账号的本机数据</button>
+    <p class="loginFoot">数据保存在浏览器 IndexedDB，不会上传。</p>
+  </div>
+</div>
+
+<!-- 元素预览 -->
+<div class="modal" id="previewModal" hidden>
+  <div class="modalCard previewCard" role="dialog" aria-modal="true">
+    <button class="modalX" data-close type="button" aria-label="关闭">×</button>
+    <div class="previewStage"><img id="previewImg" alt="元素预览"></div>
+    <div class="previewMeta"><b id="previewName">元素</b><span id="previewSize">—</span></div>
+    <div class="previewActions">
+      <button class="btn tiny" id="previewDownload" type="button">下载 PNG</button>
+      <button class="btn tiny primary" id="previewBoard" type="button">加入画板</button>
+      <button class="btn tiny danger" id="previewDelete" type="button">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加 / 编辑文字 -->
+<div class="modal" id="textModal" hidden>
+  <div class="modalCard textCard" role="dialog" aria-modal="true">
+    <button class="modalX" data-close type="button" aria-label="关闭">×</button>
+    <h2 id="textTitle">添加文字</h2>
+    <textarea id="textBody" rows="3" placeholder="输入文字…"></textarea>
+    <div class="textRow">
+      <label><span>字号</span><input id="textSize" type="range" min="12" max="240" step="2" value="72"><b id="textSizeV">72</b></label>
+      <label class="textColor"><span>颜色</span><input id="textColor" type="color" value="#111318"></label>
+    </div>
+    <div class="textRow">
+      <label><span>字体</span>
+        <select id="textFont">
+          <option value="sans">无衬线</option>
+          <option value="serif">衬线</option>
+          <option value="display">Bebas 展示体</option>
+        </select>
+      </label>
+      <label><span>粗细</span>
+        <select id="textWeight"><option value="400">常规</option><option value="700" selected>粗体</option></select>
+      </label>
+    </div>
+    <button class="btn primary wide" id="textGo" type="button">放到画板</button>
+  </div>
+</div>
+
+<!-- 自定义画布 -->
+<div class="modal" id="sizeModal" hidden>
+  <div class="modalCard sizeCard" role="dialog" aria-modal="true">
+    <button class="modalX" data-close type="button" aria-label="关闭">×</button>
+    <h2>自定义画布</h2>
+    <div class="sizeRow"><label>宽 <input id="sizeW" type="number" min="120" max="4096" step="10" value="1080"></label><label>高 <input id="sizeH" type="number" min="120" max="4096" step="10" value="1080"></label></div>
+    <button class="btn primary wide" id="sizeGo" type="button">应用</button>
+  </div>
+</div>
+
+<!-- 通用确认 -->
+<div class="modal" id="confirmModal" hidden>
+  <div class="modalCard confirmCard" role="dialog" aria-modal="true">
+    <h2 id="confirmTitle">确定？</h2>
+    <p id="confirmText"></p>
+    <div class="confirmBtns"><button class="btn" id="confirmNo" type="button">取消</button><button class="btn primary" id="confirmYes" type="button">确定</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden><span id="toastText"></span><button id="toastUndo" type="button" hidden>撤回</button></div>
+
+<script src="js/store.js"></script>
+<script src="js/extract.js"></script>
+<script src="js/library.js"></script>
+<script src="js/board.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,5 +1,75 @@
 # Changelog
 
+## 1.3.0
+
+A real super-resolution model for small elements, stricter vector export, and editable vector shapes on the Board.
+
+- **Offline Real-ESRGAN HD repair.** The installer bundles Real-ESRGAN general x4v3 (SRVGGNetCompact, 1.21M parameters, 4.8 MB, BSD-3-Clause) and ONNX Runtime Web. The Library’s “✦ HD” button now runs the model on the GPU through WebGPU (about 0.55 s per 128 px tile, first load about 1.4 s), with a WASM fallback when WebGPU is unavailable. Everything stays local. Automatic HD during save keeps the fast classical path, and Settings → Tools adds a switch to disable the model. Measured on a 96×64 sticker: text and circle edges stay sharp, while the classical / bilinear results blur.
+- **Vector export only opens for simple elements.** A flat-graphics check (dominant colour count, share of semi-transparent edge pixels) now runs before tracing. Logos, text, lines and flat graphics are traced; photos, gradients and complex illustrations stay embedded PNG, and a batch with nothing traceable reports “no simple flat element” instead of producing fragments. Measured: simple logo → 1 vector layer, 24 paths, 4 KB, no `<image>`; gradient photo → refused / fallback.
+- **Basic vector shapes on the Board.** Seven editable shapes — rectangle, rounded rectangle, ellipse, line, arrow, triangle and star — can be added, selected, moved, scaled, rotated and exported; fill / hollow / outline colour / outline width / corner radius / star points are adjustable in the properties panel. Shapes are redrawn at export resolution, so they stay sharp, and they survive Board archives.
+
+## 1.2.1
+
+Fixes for the Board and Extract issues reported while testing 1.2.0, plus real SVG vectorisation.
+
+- **Multi-selection / groups now scale and rotate as a whole.** With two or more elements selected, a group box appears with corner resize handles and a top rotation handle; dragging them changes position, size and angle together. The bottom Angle / Size sliders now apply to every selected element too (size by the same ratio, positions scaled around the group centre).
+- **Double-click layer rename fixed.** Electron does not support `window.prompt()` — the old call threw immediately. It now uses an in-app input dialog, and works around the list being rebuilt on every click (which made native `dblclick` impossible) by measuring the interval between two clicks. SVG Canvas layer rename is fixed the same way.
+- **Extract “Add to current / Subtract / Split off a piece” reworked.** Fixed using the previous tile's coordinates after switching images, which put results in the wrong place; with no explicit selection the operation now targets the element under the loop (topmost); results are forced on so the change is visible; a no-op shows a clear message; the panel shows the current element's name.
+- **Distribute H / V** only moves elements, never creates text, and reports “Distributed N elements evenly”.
+- **AI negative points are clearer.** Explicit “+ Include point / − Exclude point” buttons replace the hidden Alt-only interaction. Markers are larger, outlined, and drawn immediately (visible even if the model download fails). The legend explains green + keeps and red − removes, with Alt to reverse temporarily.
+- **No stray checkbox in the Library.** Checkboxes are hidden by default; a “Select multiple” button in the header enables them, the marquee and the bulk-delete bar, and exiting clears the selection.
+- **New “Vector SVG” export.** ImageTracer.js (Unlicense / public domain) is bundled and traces selected simple logos, text, lines and graphics into real `<path>` vectors that stay sharp for UI, posters and upscaling. Overly complex or huge elements fall back to embedded PNG so the file is always complete. Measured on a 300×200 logo + text: 3 vector layers, 70 paths, about 12 KB, no embedded images, renders correctly.
+
+## 1.2.0
+
+A batch that rounds out extraction, layers/effects and batch organisation. The Board gains archives; the Library and SVG Library gain marquee selection and batch delete.
+
+- **Extract: split another piece out of the selected element.** Wand / Lasso / AI pick gain a “Split off a piece” mode: the marked area becomes its own element and the original keeps only the remainder.
+- **AI pick supports negative points.** Click to include, Alt-click to exclude. Keep clicking the same object to refine it — AI re-runs with every prompt point. The canvas marks include points with a green + and exclude points with a red −, and the panel shows the counts plus “Clear points”.
+- **Add brush.** The preview window gains an add brush (mutually exclusive with the eraser): paint back pixels that were erased by mistake or missed. It edits the mask on the Extract page and the bitmap on the Board, and Ctrl+Z undoes it. Text layers cannot be painted.
+- **Soft edge (feather).** Settings → Tools & shortcuts adds a 0–6 px soft edge: the alpha is feathered and semi-transparent edge colours are pulled toward the interior colour, reducing white / dark fringes. Measured on one element: transition pixels 4,291 → 6,770, hard-edge pixels 8,054 → 6,677.
+- **Automatic text / line tidying.** The Extract page gains “Tidy text/lines”: long thin pieces are recognised as lines, and small pieces on the same line with similar height and small gaps are merged into text blocks. It only runs when you click it — auto splitting never merges silently.
+- **Batch consistency.** After importing several images, “Re-split all” appears and re-runs every image with the current settings, so results do not drift image by image.
+- **Layered SVG is labelled honestly.** A layered SVG exported from Extract contains embedded PNG bitmaps per layer, not vector paths, so it still blurs when enlarged. The export toast, button tooltip, SVG Library note and SVG Canvas title now say “embedded bitmap”, and the file itself carries a `<desc>`.
+- **Board layer panel.** “Layers” at the top-right opens a real column (the canvas becomes narrower rather than being covered). Each layer can be shown/hidden, locked, or renamed by double-click; the properties area sets opacity and blend mode (normal / multiply / screen / overlay / darken / lighten), and layers can be grouped / ungrouped (clicking any member drags the whole group).
+- **Text effects / sticker stroke & shadow.** The same properties area adds stroke (width + colour) and shadow (blur, X/Y offset, colour) to both images and text; exports and “Save to library” include them.
+- **Equal spacing.** With three or more elements selected, “Distribute H / V” makes the gaps equal using real ink edges (measured: three elements of different widths ended up with identical gaps).
+- **Board archives.** Save the canvas size, background, background image, every layer, text and effects locally, then reopen it later; keep several and delete them. Stored in the user-data folder, so updates keep them.
+- **Marquee batch delete in the Library / SVG Library.** Every card has a checkbox in its corner; drag on empty space to marquee-select, Ctrl / Shift-click to add. The header shows the selected count and a trash button, with the same 3-second undo.
+
+## 1.1.2
+
+Follow-up fixes and additions from testing 1.1.1.
+
+- **Fixed: using the eraser made the whole background look erased.** The first stroke used to switch the layer to a “manual mask”, dropping everything the edge post-processing had filled in — so the background appeared to vanish. The visible mask is now materialised before the first stroke, and the eraser only clears under the brush. Measured on a 1459×928 full-image element: one stroke removes about 7,000 pixels, while far-away pixels stay opaque.
+- **The eraser no longer breaks up during fast drags.** Intermediate points are interpolated between pointer events, on both the Extract page and the Board preview.
+- **Undo inside the preview.** Ctrl+Z (or the ↶ button in the title bar) undoes the previous eraser stroke: the mask on the Extract page, the bitmap on the Board. The button disables itself when there is nothing to undo.
+- **New “send to back” button.** A down arrow at the bottom-right of the selection box, the counterpart of the single-selection-only “bring to front” arrow.
+- **New text remembers the last style.** Font, size, colour, line height, letter spacing, bold/italic and alignment are reused for the next text. A “Reset style” button in the text panel is the only way back to the defaults. The style is stored locally and survives restarts.
+- **Preview and delete from the Board’s material panel.** Hovering a material shows a magnifier and a trash can: the magnifier opens the same preview layout as elements (thumbnail strip + large view, no checkboxes), and the trash deletes with a 3-second undo. The Library page also gained a magnifier.
+- **Delete is now a trash icon everywhere**: Extract element list, Board, Library, SVG Library and SVG Canvas — no more guessing the word in the other language.
+- **SVG Canvas rotation handle fixed.** The stem now starts at the midpoint of the top edge like the Board, instead of drawing a diagonal line from the top-left corner; the handle follows the top edge when rotated.
+- **Resizable, reflowing workspace** (real layout changes, not overlays):
+  - Extract: drag the divider between the stage and the element panel; a wider panel fits more columns.
+  - Board: drag the left material panel wider; resize material tiles with the − / + buttons in its header or Ctrl+wheel to show more items.
+  - Library: Ctrl+wheel or the − / + buttons in the header resize the cards.
+  - Navigation: the ‹ button collapses it to a 16px strip with ›, and the main area grows to fill the space.
+  - All widths and zoom levels are remembered locally.
+- **Shortcuts now have visible controls**: Duplicate (Ctrl+D) on the Board, Hide (Esc) on the Extract page, and zoom − / +, Fit and Undo in the preview.
+- The snapping guides, background image, font library and wheel-adjusted sliders from 1.1.1 are unchanged.
+
+## 1.1.1
+
+- **Board: the alignment buttons are gone, replaced by snapping guides.** The old left / centre / right / top / middle / bottom bar has been removed. While dragging, an element within 6 screen pixels of a canvas edge, a canvas centre line, or another element's real ink edge / centre line snaps to it, and orange dashed guides show the alignment. Multi-selections snap as one group.
+- **Board: a “bring to front” button on the selection frame.** A small up-arrow appears at the top-right of the dashed box when exactly one element is selected; clicking it moves that element above all others. It is hidden for multi-selection.
+- **Board: background eyedropper and background image.** The background row now has an eyedropper (pick a colour anywhere on screen) and a background-image button. The background image is always drawn beneath every element — it is not a layer, cannot be selected or dragged — and can be switched between “cover / contain” or removed. Export and “Save to library” include it.
+- **Board: many more fonts, plus your own.** Eight free, open-source (SIL OFL) fonts are bundled: Ma Shan Zheng, ZCOOL KuaiLe, Long Cang, Anton, Bebas Neue, Caveat, Pacifico and Press Start 2P. The “Aa” button opens a font library where you can import local `.ttf / .otf / .woff / .woff2` files or download more free fonts in-app (ZCOOL XiaoWei, Liu Jian Mao Cao, Playfair Display, Orbitron, Monoton, Bungee, via npmmirror). Imported and downloaded fonts are stored in the user-data folder, survive updates, and can be deleted from the library.
+- **Board: parameter sliders with wheel adjustment.** Font size, line height, letter spacing, angle and scale now have sliders; hovering a slider or number field and scrolling changes it (Shift for bigger steps), and the canvas does not zoom while you do so.
+- **Element preview can zoom and erase.** The preview now supports scroll-to-zoom centred on the pointer, middle-drag to pan and double-click to reset. An eraser button adds a brush-size slider; paint on the preview to remove unwanted parts. On the Extract page this edits the element mask (and persists on export — the layer is marked as manual so hole filling no longer restores it). In the Board preview it edits a bitmap copy inside the board only (library files untouched, and undo works).
+- **New “Preview” entry on the Board.** The magnifier in the bottom toolbar opens a board-element preview with the same layout as the Extract page preview, minus the checkboxes. Text layers cannot be erased; image layers can.
+- **Fixed: framed screenshots / posters could only ever select the whole image.** Edge background removal was blocked by the outer frame, so everything inside it became one connected element. When the foreground covers nearly the whole image, PixPeel now re-splits using the inner dominant colour as the background. Measured on a 1459×928 poster with its own border: the result went from 1 element to 8, and the “PixPeel” title, subtitle and every icon can be selected individually.
+- Font import and download are saved by the main process under `userData/fonts`; downloads are restricted to `registry.npmmirror.com`.
+
 ## 1.1.0
 
 - **New on the Board: text.** A “Text” button adds a text layer. Pick from system fonts (Hei / Song / Kai / serif / mono — no font files are bundled) and set size, line height, letter spacing, colour, bold, italic and left/centre/right alignment. Double-click text on the canvas to select it and edit it in the panel. Text is drawn as vectors from its parameters, so it stays sharp when you zoom in and on export (measured: the same text on a 2× canvas has exactly 2× the ink, and the anti-aliasing band is 2 px).

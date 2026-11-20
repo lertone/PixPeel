@@ -38,12 +38,13 @@ server.js        本机联动服务，只监听 127.0.0.1:17652
 renderer/
   app.js         拆元素页（主界面）、拼贴墙、元素列表
   engine.js      分割引擎：颜色/聚类分割、连通域、形态学、边缘修补
-  board.js       画板（位图拼图 + 文字层 + 对齐/居中）
+  board.js       画板（位图拼图 + 文字层 + 吸附虚线 + 背景图 + 字体库）
   svg.js         SVG 库 + SVG 画布（矢量分层编辑）
   extras.js      设置页、高清修复、AI 模型面板等
   i18n.js        中英文案
   index.html     唯一页面；logo 是内联 SVG
   style.css
+  fonts/          内置免费字体（SIL OFL）+ OFL 许可证
 build/installer.nsh   NSIS 自定义脚本（开始菜单快捷方式 + AUMI，Windows 通知图标靠它）
 editor/xiaoji-animation.html   「小剪动画」H5
 .github/workflows/release.yml  打 tag 即发版
@@ -105,13 +106,46 @@ docs/            CHANGELOG（中英）、PRIVACY、LINK-PROTOCOL、RELEASING
 `renderer/engine.js` 里用一个 Web Worker 跑 transformers.js，模型从 HuggingFace 下载，国内自动走 hf-mirror 镜像。
 两种权重：量化版 `q8`（默认，15–40MB）和浮点版 `fp32`（40–100MB）。**浮点版在内存不够的机器上会加载失败**——已经加了自动降级（`aiFallbackToQ8()`：失败就换回量化版重试一次，只降一次）。模型状态记在 localStorage 的 `pp_ai_q8` / `pp_ai_fp32`。
 
+v1.2.0 起支持**多点 + 反选点**：`SEG.aiPts` 存 `{x,y,neg}`，普通点击是正点、Alt+点击是反点；worker 用 `input_points:[[m.pts]]` + `input_labels:[[m.labels]]`（只有存在反点时才带 labels，保持原单点调用不变）。同一次会话里后续点击会 `segReplaceLayer()` 替换同一层，不会越点越多层；新正点落在当前层 bbox 外会自动开一轮新提示点。点位置用画布上的绿 + / 红 − 标出，切工具 / 切图块 / 清空提示点都会重置 `SEG.aiPts`、`SEG.aiLayer`。
+
+### 抠图增强（v1.2.0）
+
+- **拆出一块**：`SEG.mode='split'`。`segApply` 把「选区 ∩ 当前层」变成独立元素，原层只保留剩下的部分（全被拿走就删掉）。新层名是「{原层} 拆出」。
+- **补画笔**：预览窗 `.pvAdd` 和橡皮二选一（`PV.add`）。拆元素用 `segAddDot()` 改写 `L.m` + tint，并从 `segSourceCv()`（按 1px padding 对齐的原始像素副本）把像素画回 `cutCv`；画板用 `Board.paintBegin(l, true)` 返回 `{cv, base}`，`paintDot()` 从 `base` 补画。`__base` 是第一次涂抹前的原始位图，`paintBegin` 时创建；`__sil`（描边剪影）要在涂抹后置空。
+- **软边**：`CFG.softEdge`（0–6 px，设置页滑杆）。`segCut` 里若 >0 就走 `segSoftEdge()`（alpha 盒式模糊 + 半透明像素颜色往内部平均色拉），否则回退到 `segSmoothEdge()`。改 `softEdge` 必须清 `L._cuts`。
+- **文字/线条整理**：`segGroupText()` 由按钮触发；线条按 `autoKind='line'` / 文字块按 `autoKind='text'` 命名，`relabelLayers()` 会跟着语言切换。用户手动改名时 `autoName` 和 `autoKind` 都要清空。
+- **批量一致性**：多图时 `segResplitAll()` 用当前参数逐张重跑 `segAuto()`，每张图只清自己的图层。
+
+v1.2.1 修正（这些都是用户实测报过的）：
+
+- `segTargets()` **只认当前 tile 的选中层**。`setCurTile()` 必须清 `SEG.sel`，否则切图后还用上一张图的 bbox 配新图的 `SEG.src`，加减拆会跑到错误位置。没有显式选中时，加 / 减 / 拆作用在圈到的那个元素（最上面一层），不再要求先勾选。
+- 加 / 减结果 `nl.on=true`，否则用户点元素时它已经被 toggle 成 off，改完看不见；没有像素变化时提示 `eNoChange`，不要静默重建一层。
+- 参数区显示「当前元素：xxx」，否则「加到当前」的“当前”完全不可见。
+
+### SVG 矢量化（v1.2.1）
+
+- 内置 `renderer/vendor/imagetracer.js`（ImageTracerJS 1.2.6，**Unlicense / 公有领域**，47KB，无构建步骤），在 `index.html` 里用普通 `<script>` 引入，全局 `ImageTracer`。
+- `buildVectorSvg(out)`：对每个 `buildOut()` 的 cut canvas 做 `imagedataToSVG`，默认 `numberofcolors:12`、`ltres/qtres:0.8`、`strokewidth:0`、`pathomit:6`；去掉 `opacity<0.02` 的透明背景路径，再按 `translate(o.x o.y)` 组合成保留图层的 SVG。
+- 背景层（`area>=1e11`）、超过 90 万像素、单层路径 >1.2MB 的元素**自动回退成内嵌 PNG**，保证导出文件完整；`doVectorSvg()` 只是包一层保存对话框和 toast。
+- 实测 300×200 的 logo + 文字：3 个矢量组、70 条 path、12KB、没有 `<image>`、浏览器能正常渲染。复杂照片不要期待描摹效果好，它适合纯色 logo / 文字 / 线条 / 简单图形。
+- SVG 库的「矢量 / 内嵌位图」标记靠检测 `<image>`，混合导出会显示内嵌位图，这是正确行为。
+- v1.3.0 起加了门槛：`vectorFriendly(cv)` 抽样最多 12 万像素、按 4bit 色桶统计，主色 ≤20 个、最大主色 ≥5%、半透明边缘 ≤60% 才允许描摹。没通过的元素内嵌 PNG；整批 `vec===0` 时 `doVectorSvg()` 只提示 `svgVecNotSimple`、不再保存，避免输出一堆碎片路径。实测简单 logo 24 条路径 / 4KB，渐变照片 0 条。
+
+### 高清修复模型（v1.3.0）
+
+- `renderer/sr.js` + `renderer/vendor/ort/*` + `renderer/vendor/models/realesr-general-x4v3.onnx`。模型输入 `image` `[1,3,128,128]` RGB 0–1，输出 `upscaled_image` `[1,3,512,512]`，固定 4x；128 输入是模型内部固定 shape，改成 256 会 shape 推断失败。
+- 主进程 `asset:read` 只放行 `sr/model.onnx` 和 `sr/ort-wasm-simd-threaded.wasm`；`package.json` 的 `asarUnpack` 必须包含 `renderer/vendor/ort/**` 和 `renderer/vendor/models/**`，否则打包后读不到。
+- `srEnsure()` 先建 WebGPU session（约 1.4s），失败才设 `ort.env.wasm.wasmBinary` 再建 WASM session。**不要在 WebGPU 之前设 wasmBinary**，会报 `d is not a function`。运行 `SR.ep` 可判断当前后端。
+- `srUpscale` 按 128 切块、每块保留 16px 上下文、只取中间 96×4 的区域拼接，块间无接缝；透明元素单独把 alpha 用 Lanczos 放大，硬边贴纸再做 smoothstep 收边。RGB 用 8 邻域向外生长填透明区，避免模型把边缘带黑。
+- 手动高清（素材库 ✦ 按钮 / `hdFile`）走模型；保存时自动高清 `buildOut` 里的 `hdCanvas(..., false)` 仍走经典 `hdEnhance`，否则批量保存太慢。设置项 `CFG.srModel` 默认 true，可在设置 → 素材处理关掉。
+
 ### 背景层（「剩下的部分也存成一层」）
 
 `buildOut()` 里对**每张有选中元素的图**各算一份背景层（v1.0.6 起）。之前只算当前那张，
 批量导入时其它图的剩余像素被静默丢弃。批量时文件名是 `背景 - <原图名>.png`，
 否则几张「背景」会退化成 `背景.png` / `背景_2.png`。
 
-### 画板：文字层与对齐（v1.1.0 起）
+### 画板：文字层、吸附与字体（v1.1.1 起）
 
 文字层是 `{ kind:'text', text, font, size, weight, italic, color, align, lineH, letter, x, y, s, r }`，
 **不存位图**：只存参数，`drawText()` 每次按当前缩放矢量绘制，放大和导出都不糊。图片层没有 `kind`。
@@ -119,17 +153,73 @@ docs/            CHANGELOG（中英）、PRIVACY、LINK-PROTOCOL、RELEASING
 - `textLayout(l)` 用共享的测量 canvas 算紧致外框（`w`/`h` 写回图层，`_lk`/`_lay` 缓存，key 是全部排版参数）
 - **`measureText` 的 `actualBoundingBox*` 会按 `c.textAlign` 变化**，所以测量前必须设 `c.textAlign = l.align`，和 `fillText` 时保持一致，否则外框和实际墨迹对不上
 - `x0` / `x1` 初值必须是 `±Infinity`：左对齐时 `actualBoundingBoxLeft` 是负数（-5），从 0 开始取最小会留下 5px 空白
-- 字体只用系统字体栈（`FONTS` / `FONTMAP`），不打包字体文件
+- 字体：内置 8 款在 `renderer/fonts/`（SIL OFL，附 `OFL-*.txt`），`FONTS` 数组里配 `@font-face` 的 family 栈；用户导入 / 应用内下载的字体在 `userData/fonts`，主进程 IPC 为 `font:list/read/import/del/download`。用户字体 key 是 `u:文件名`，运行时 `FontFace` 注册后 push 进 `FONTS`，`loadUserFonts()` 负责重载和刷新下拉框。下载源固定 `registry.npmmirror.com` 的 `@expo-google-fonts` tgz，主进程用 `zlib.gunzipSync` + 手写 tar 解析取 TTF，不要放开任意 URL
+- **v1.1.1 移除了对齐按钮栏**。拖动时 `snapMove()` 按「画布边缘/中线 + 其它图层的 worldBox 边缘/中线」吸附，阈值 6 屏幕像素（换算成文档坐标要除以 `B.zoom`），命中时把虚线位置写进 `B.guide`，`draw()` 画橙色虚线。多选时按 `unionBox` 整组吸附
+- 选框右上角 `B.topBtn` 是「置顶」、右下角 `B.botBtn` 是「置底」按钮，只在单选时绘制 / 命中，点击分别 `toFront()` / `toBack()`。按钮位置每帧重算，坐标是屏幕坐标，`hitLayer` 不要抢在它们前面
+- 背景图 `B.bgImg` 不是图层：`drawBgImage()` 在背景色之后、所有图层之前画，`cover`/`contain` 由 `B.bgMode` 控制，`snapB` 里用 `bgId` 进历史 key。吸管用 `window.EyeDropper`，不支持就 toast
 
-对齐按**实际有像素的边缘**算，不是 PNG 的图片框：
+预览窗（`app.js` 的 `PV`）同时服务拆元素页、画板和素材库：
+
+- `PV.mode = 'seg' | 'board' | 'lib'`；`pvItems()` 取 `SEG.layers`、`Board.state.layers` 或 `PV.libItems`。画板和素材库模式不显示勾选框，文字层 / 素材预览禁用橡皮
+- 视图不是「canvas 跟着图放大」，而是 canvas 铺满 `.pvStage`，用 `translate/scale` 绘制；擦除坐标要用逆变换算回图层像素。滚轮缩放、中键平移、双击 `pvFit()`
+- 拆元素橡皮 `segEraseDot()` 清 `L.m`，同时清 `L.tint` 和 `segCut` 的 canvas，设 `L.manual=true` 并作废 `L.mp` / `L._cuts`
+- **落笔前必须调 `segEraseBegin(L)`**：把当前 `segPolishMask(L)` 固化进 `L.m`。否则第一笔把图层切成 manual，补缝 / 填洞的结果全部消失，用户看到的就是「橡皮把整块背景擦掉了」（1459×928 的整图元素实测：原始蒙版 368k 像素，补洞后 1.31M，直接切 manual 会瞬间少 94 万）
+- 橡皮要在两个 pointermove 之间按 `brush*0.35` 补点，快速拖动才不会断成一个个圆点
+- 预览窗内的 Ctrl+Z：拆元素用 `PV.segHist`（每次落笔前存一份 `Uint8Array` 蒙版，按总字节数 48MB / 12 笔封顶），画板直接走 `Board.undo()`；UI 上对应标题栏的 ↶ 按钮，按历史有无自动禁用
+- 画板橡皮 `Board.eraseBegin()` 复制一份位图再 `destination-out`，不碰素材库原文件；`eraseBegin` 里 `B.rev++`，否则像素变化进不了 `snapB()` 的 key、撤不回
+- 素材库预览用 `pvOpenLib(items, rel)`，先把 `url` 全预载成 Image；画板素材栏和素材库页共用它
+
+画板其它 v1.1.2 约定：
+
+- 新文字样式存 `textStyle` + localStorage `pp_text_style`，每次改字号 / 字体 / 颜色等都由 `rememberText()` 记住；只有「恢复默认」按钮会重置。`DEF_TEXT` 是唯一的默认值来源
+- 选框两个小按钮：`B.topBtn`（右上 ↑ 置顶）和 `B.botBtn`（右下 ↓ 置底），都只在单选时绘制和命中，命中判断要排在 `hitHandle` 之前
+- 素材栏宽度 `--bdmatw`、素材格子 `--bdtile`、拆元素检查器 `--insp-w`、素材库 `--libmin`、导航收起 `body.railHide` 都写 localStorage；分隔条 `.vsplit` 是真 grid/flex 列，拖宽会让另一侧真正变小，不要做成浮层
+- 删除按钮统一是垃圾桶 SVG（`IC.trash`）。**按钮里塞 SVG 后不能用 `e.target.id`**：点到的是 `<path>`，id 为空。委托点击必须 `e.target.closest('button[id]')`（拆元素页的 `bDel` 就踩过这个）
+- 导航收起后 `#railShow` 是 16px 的 grid 子项（不是 fixed 浮层），`main` 始终 `grid-column:2`；否则网格自动排布会把 main 塞进 0px 的第一列
+- SVG 画布的旋转柄 `rotHandle()` 要沿顶边外法线伸出，线段从顶边中点到手柄；不要从 `cs[0]` 画斜线
+
+画板 v1.2.0 起：
+
+- **图层面板**是 `.bd-main` 里真实的一列（`.bd-col` + `.bd-side`，`#v-board.layersOn` 时显示），显示时画布变窄，不是浮层。图层属性都直接挂在图层对象上：`vis`（false 才隐藏）、`lock`、`op`、`blend`、`group`、`strokeW/strokeColor`、`shadowOn/shadowBlur/shadowDX/shadowDY/shadowColor`。**`snapB()` 的 key 必须包含这些字段**，否则改透明度 / 混合 / 锁 / 分组 / 特效都进不了撤回历史。
+- 图片描边用 `strokeSil()` 生成的纯色剪影沿圆周偏移绘制；剪影缓存在 `l.__sil`，涂抹 / 换颜色后要置空。文字描边 / 投影在 `drawText()` 里用 `strokeText` + `shadow*` 实现。
+- 锁定层在 `hitLayer` / 框选 / 删除里跳过，但仍可在图层面板里选中；隐藏层不参与命中和导出。点组内任一元素会把整组加进 `B.multi` 一起拖动。
+- **等距分布** `distribute('h'|'v')` 用 `worldBox` 的实际墨迹边缘，首尾不动、中间均分；三个以上才可用。
+- **存档**：主进程 IPC `archive:list/save/read/del`，文件在 `userData/board-archives/*.json`。图片层存成 dataURL，文字层只存参数；恢复时重建图层并清空撤回历史。文件名只接受 basename + `.json`。
+- 改面板 / 图层面板相关 DOM 时注意 **dataset 是字符串，图层 id 是数字**：`x.id === row.dataset.lid` 永远 false，必须 `String(x.id) === ...`（v1.2.0 的锁定按钮踩过）。
+- **Electron 不支持 `window.prompt()`**，调用会直接抛 `prompt() is not supported.`。改名 / 输入名字一律用 `app.js` 的 `askText(title, value, cb)`（应用内输入框）。
+- 图层面板每次选中都会 `renderLayers()` 重画 `innerHTML`，**原生 `dblclick` 永远收不到**。改名要按两次点击的间隔自己判断（`lastTap`），不要依赖 `ondblclick`；SVG 画布图层列表同理（`rowTap`）。
+- 多选 / 成组：`draw()` 里算 `B.groupBox`（屏幕坐标的整组选框 + 四角 + 旋转柄），`hitHandle()` 返回 `gscale/grot`，`down/move` 对整组做绕中心缩放 / 旋转；底部角度 / 大小滑杆也按“整组”处理（角度加增量、大小按比例并绕中心移动位置）。改这块时注意 `snapB()` 的 key 已经包含 s/r/位置。
+- 素材库 / SVG 库默认不显示 `.libCk`，`.libMultiOn` 才显示；`gridSelectInit()` 的「多选」按钮切换 `multiOn`，非多选模式下空白拖动不生效、点卡片仍然复制 / 打开。
+- **基础矢量形状（v1.3.0）**：图层 `kind:'shape'`，`shape` 为 `rect/round/ellipse/line/arrow/triangle/star`，参数是 `w/h/fill('none' 为空心)/lineColor/lineW/radius/points`。`drawShape()` 用 Canvas 路径按图层参数绘制，导出时按目标分辨率重画，所以不是位图；`inkRect()` 对 shape 直接用 `w/h`。`snapB()`、`layerSnapshot()`、`openArchive()` 都必须带上这些字段，否则缩放 / 旋转 / 存档会丢。形状没有图片描边控件，描边统一用 `lineW`。
+
+### 素材库 / SVG 库的框选
+
+给每张 `.cell` 加 `.libCk`，空白处 `pointerdown` 拉框，Ctrl / Shift 点击加选，标题栏的垃圾桶批量删除（仍走 3 秒 `undoToast`）。测试时注意：**窗口在后台时 Chromium 会把 `setTimeout` 节流到分钟级**，删除的 3 秒确认会拖很久，别误判成删除失败。
+
+### SVG 的真相（v1.2.0 明确标注）
+
+从拆元素页导出的「分层 SVG」**不是矢量图**：每个 `<g>` 里是一个 `<image xlink:href="data:image/png;base64...">`，也就是把透明底 PNG 包进 SVG。所以放大会和原图一样模糊，文件体积也大。导出时写入了 `<desc>` 说明；导出提示、按钮 tooltip、SVG 库说明和 SVG 画布标题都会标「内嵌位图」。v1.2.1 起另有「矢量 SVG」按钮，用 ImageTracer 把简单元素描摹成真正的 `<path>`（见上面的「SVG 矢量化」），复杂图片仍然保留位图。
+
+
+
+对齐仍按**实际有像素的边缘**算，不是 PNG 的图片框：
 
 - `alphaBox(im)`：alpha > 8 扫描真实墨迹范围，最多采样 1024px，结果缓存在 `im.__box`
 - `inkRect(l)`：图片用 `alphaBox`，文字用 `textLayout` 的 `w/h`
 - `worldBox(l)`：墨迹矩形四角按 `l.s` / `l.r` 变换后取 AABB（旋转时含空角，属正常）
-- `alignTo(mode)`：基准 `#bdBase` 选「画布」或「选中元素」（`unionBox`）；`centerCanvas()` 始终相对画布
 - 实测：不对称图（内容只占 200×200 的右下 60×40）六个方向误差 0px；文字墨迹与 `worldBox` 误差 0.41px
 
 `snapB()` 的 `k` 里要带上文字参数，否则改字号 / 颜色不会进撤回历史。
+
+## 网页版（web/，v1.3.0 起）
+
+- 纯静态、无构建：`web/index.html` + `web/css/site.css` + `web/js/{store,extract,library,board,app}.js`。三个区域是主页 / 拆元素 / 元素库（元素库内含画板），顶部 `#tabs` 切换，hash 路由 `#home #extract #library #board` 在 `app.js`。
+- 数据：IndexedDB `pixpeel-web`，`items`（uid 索引）和 `boards`（uid 主键）；本机昵称存在 localStorage `pp_web_session`；游客 uid `guest`。登录只是本机昵称，不联网；勾选合并时 `PPStore.mergeGuest()` 会把游客元素和画板搬到账号下。
+- 拆元素：`extract.js` 先在原蒙版上做连通块，再按组件分组合并（**不要直接膨胀整张蒙版**，会通过背景把远处元素串成一个大块）；默认合并 6px，同行的小组件允许 2 倍字距。SlimSAM 模型在 `web/models/slimsam/`，transformers.js 从 CDN 加载，模型本地读取，失败不影响自动拆分。
+- 画板：`board.js` 图层 `kind:'img'|'text'|'shape'`，图片 `blob` 直接存 IndexedDB；自动存档 500ms 防抖；导出按 W×H 重绘。移动端底部抽屉，`body.focusMode` 隐藏全部面板，CSS 在 `max-width:900px` 下要把 `.exShell` 改回单列，否则全屏时舞台会塌成 2px。
+- 必须保留 `[hidden]{display:none!important}`：很多面板有 `display:grid/flex`，否则 `hidden` 属性会被作者样式覆盖（拆元素忙碌遮罩就踩过）。
+- 部署：GitHub Pages 用 `.github/workflows/pages.yml` 上传 `web/`；站点地址写死在 `config.js` 的 `website`，桌面版设置里的「官方网站」通过 `publicSettings().website` 读取，`safeExternal` 会自动把该域名加入白名单。
+- 本地测试：`python -m http.server 4180 --directory web`，用 Chrome CDP 或浏览器实测桌面 / 390px 手机；页面不依赖构建，改完刷新即可。
 
 ### 联动协议
 
