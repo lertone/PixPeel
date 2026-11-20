@@ -129,7 +129,7 @@ html[lang=en] .hero h1{font-size:clamp(42px,4.9vw,68px);line-height:1.05;letter-
 .floatChip{position:absolute;left:10%;bottom:-3%;z-index:4;display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;background:var(--ink);color:var(--paper);
   font:11px/1 var(--mono);box-shadow:0 10px 24px rgba(0,0,0,.22)}
 .floatChip .dot{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px rgba(82,227,189,.2)}
-.floatChip b{color:var(--mint)}
+.floatChip b{font:700 12px/1 var(--ff);color:var(--mint);margin:0 2px}
 .marquee{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper2);padding:12px 0}
 .marqueeTrack{display:flex;align-items:center;gap:26px;width:max-content;animation:marq 34s linear infinite;color:var(--dim);font:15px/1 var(--ff);letter-spacing:.06em;white-space:nowrap}
 .marqueeTrack i{width:7px;height:7px;border-radius:50%;background:var(--orange);opacity:.7}
