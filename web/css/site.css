@@ -62,6 +62,17 @@ input,select,textarea{font:inherit;color:inherit}
 .ghostBtn{width:36px;height:36px;display:inline-grid;place-items:center;border-radius:10px;color:var(--dim)}
 .ghostBtn:hover{background:var(--paper2);color:var(--ink)}
 .ghostBtn svg{width:19px;height:19px}
+.sponsor{position:relative}
+.sponsor summary{list-style:none}
+.sponsor summary::-webkit-details-marker{display:none}
+.sponsorBtn{display:flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--dim);font-size:12.5px;font-weight:600;cursor:pointer;transition:.18s}
+.sponsorBtn:hover,.sponsor[open] .sponsorBtn{color:var(--ink);border-color:var(--line2);background:var(--paper2)}
+.sponsorBtn svg{width:15px;height:15px;color:var(--orange);flex:none}
+.sponsorMenu{position:absolute;right:0;top:calc(100% + 8px);min-width:206px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh);z-index:70}
+.sponsorMenu a{display:block;padding:8px 10px;border-radius:8px;transition:.15s}
+.sponsorMenu a:hover{background:var(--paper2)}
+.sponsorMenu b{display:block;font-size:12.5px;color:var(--ink)}
+.sponsorMenu span{display:block;font-size:11px;color:var(--dim);margin-top:1px}
 .userChip{display:flex;align-items:center;gap:7px;padding:4px 10px 4px 4px;border-radius:20px;border:1px solid var(--line);background:var(--panel);transition:.18s;max-width:150px}
 .userChip:hover{border-color:var(--line2)}
 .avatar{width:28px;height:28px;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
@@ -393,7 +404,12 @@ html[lang=en] .enOnly{display:block}
 .libQuick{position:absolute;right:7px;bottom:7px;display:flex;gap:4px;opacity:0;transform:translateY(4px);transition:.16s;z-index:2}
 .libCard:hover .libQuick{opacity:1;transform:none}
 .libQuick button{width:27px;height:27px;border-radius:7px;background:rgba(255,255,255,.94);color:#222;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.15);font-size:12px}
+.libQuick button svg{width:13px;height:13px}
 .libQuick button:hover{background:var(--orange);color:#fff}
+.libDel{position:absolute;left:7px;top:7px;z-index:2;width:27px;height:27px;border-radius:7px;background:rgba(255,255,255,.94);color:#222;display:grid;place-items:center;box-shadow:0 3px 8px rgba(0,0,0,.15);opacity:.72;transition:.16s}
+.libDel svg{width:13px;height:13px}
+.libDel:hover{opacity:1;background:#e34a2b;color:#fff}
+.libCard.sel .libDel,.libCard.selMode .libDel{opacity:0;pointer-events:none}
 .libCta{border-style:dashed;background:transparent;display:grid;place-items:center;gap:6px;min-height:220px;color:var(--dim);padding:20px}
 .libCta:hover{border-color:var(--orange);color:var(--orange);background:var(--orange-soft);transform:none;box-shadow:none}
 .libCta .plus{width:42px;height:42px;border-radius:50%;border:1px dashed currentColor;display:grid;place-items:center;font-size:22px;line-height:1}
@@ -579,6 +595,8 @@ body.focusMode .bdStageWrap{padding:10px}
   .tabs a{padding:7px 11px;font-size:12px}
   .topActions{margin-left:0;gap:2px}
   .topActions .iconBtn{width:32px;height:32px}
+  .sponsorLabel{display:none}
+  .sponsorBtn{width:32px;height:32px;padding:0}
   .userChip{padding:3px;border:0;background:none;max-width:none}
   .userName{display:none}
   .hideSm{display:none!important}

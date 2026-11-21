@@ -28,8 +28,8 @@
     '本地': 'Local',
     '正在本地拆解': 'Splitting locally',
     '个元素': 'elements',
-    '徽章 · 198×198': 'Badge',
-    '按钮 · 272×90': 'Button',
+    '徽章 · 320×320': 'Badge',
+    '按钮 · 582×162': 'Button',
     '文字 · 一字不糊': 'Text',
     '图形 · 透明底': 'Shape',
     '按钮': 'Buttons',
@@ -48,7 +48,7 @@
     '拖进来 / Ctrl+V': 'Drop in / Ctrl+V',
     '拆开': 'Split',
     '自动识别背景色和连通区域，边缘带抗锯齿。没拆对的，用点选、魔棒或 AI 点选补一刀。': 'Detects the background and connected regions, with anti-aliased edges. Missed something? Pick, wand or AI pick it.',
-    '自动拆成 7 个': 'Auto-split into 7',
+    '自动拆成 9 个': 'Auto-split into 9',
     '收好，再拼': 'Save, then compose',
     '选中元素存进元素库，随时下载透明 PNG；也可以在画板里加文字、形状，拼成新的海报。': 'Save elements to the library, download transparent PNGs any time, or add text and shapes on the board to make a new poster.',
     '→ 元素库': '→ Library',
@@ -236,6 +236,10 @@
     '清除这个账号的本机数据': 'Clear this account’s local data',
     '数据保存在浏览器 IndexedDB，不会上传。': 'Data lives in browser IndexedDB and is never uploaded.',
     '数据暂存在本机': 'Stored on this device',
+    '赞助': 'Support',
+    '请作者喝杯咖啡': 'Buy the author a coffee',
+    '爱发电': 'Afdian',
+    '按月支持 PixPeel': 'Monthly support on Afdian',
     '本机账号 · 数据不上传': 'Local account · nothing uploaded',
     '游客 · 本机暂存': 'Guest · local only',
     '游客数据暂存在本机': 'Guest data is stored on this device',
@@ -342,7 +346,9 @@
     '显示 / 隐藏': 'Show / hide',
     '锁定': 'Lock',
     '下载 PNG': 'Download PNG',
-    '加入画板': 'Add to board'
+    '加入画板': 'Add to board',
+    '删除元素': 'Delete element',
+    '赞助 PixPeel': 'Support PixPeel'
   };
 
   const BLOCKS = {

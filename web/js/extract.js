@@ -512,45 +512,63 @@
   function buildSample() {
     setStatus('正在生成示例…');
     const en = window.PPI18N && PPI18N.lang() === 'en';
-    const w = 1000, h = 660;
+    /* 高分辨率 + 纯色底 + 大间隙的扁平元素：拆出来边缘干净，放大不糊 */
+    const w = 1800, h = 1200;
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     const g = cv.getContext('2d');
+    const round = (x, y, ww, hh, r) => { g.beginPath(); g.roundRect(x, y, ww, hh, r); };
+    const label = (text, cx, cy, font, color) => {
+      g.font = font; g.fillStyle = color;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(text, cx, cy);
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    };
+    const star = (cx, cy, R, r, n, fill, stroke, lw) => {
+      g.beginPath();
+      for (let i = 0; i < n * 2; i++) {
+        const rad = i % 2 ? r : R;
+        const a = -Math.PI / 2 + i * Math.PI / n;
+        const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad;
+        if (i) g.lineTo(x, y); else g.moveTo(x, y);
+      }
+      g.closePath();
+      g.fillStyle = fill; g.fill();
+      g.lineWidth = lw; g.strokeStyle = stroke; g.stroke();
+    };
+
     g.fillStyle = '#efe4d6'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#1a1410';
-    g.font = '700 78px Georgia, "Times New Roman", serif';
-    g.fillText('MISTVALE', 86, 160);
-    g.fillStyle = '#8a7769';
-    g.font = '20px "Microsoft YaHei", "Segoe UI", sans-serif';
-    g.fillText(en ? 'A screenshot, split into usable pieces.' : '一张截图，拆成能用的素材。', 90, 200);
-    g.fillStyle = '#ff5a2a';
-    g.beginPath(); g.roundRect(86, 250, 250, 76, 16); g.fill();
-    g.fillStyle = '#fff';
-    if (en) {
-      g.font = '700 24px "Segoe UI", sans-serif';
-      g.fillText('START GAME', 118, 297);
-    } else {
-      g.font = '700 30px "Microsoft YaHei", sans-serif';
-      g.fillText('开始游戏', 142, 300);
-    }
-    g.fillStyle = '#e4f26d';
-    g.beginPath(); g.arc(786, 292, 88, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = '#1a1410'; g.lineWidth = 10; g.stroke();
-    g.fillStyle = '#1a1410';
-    g.font = '700 36px Georgia, serif';
-    g.fillText('NEW', 746, 306);
-    g.fillStyle = '#fff';
-    g.beginPath(); g.roundRect(86, 420, 660, 140, 18); g.fill();
-    g.fillStyle = '#1a1410';
-    g.font = '600 25px "Microsoft YaHei", "Segoe UI", sans-serif';
-    g.fillText(en ? 'Drop elements in, get stickers.' : '拖进来的元素，直接变成贴纸', 118, 472);
-    g.fillStyle = '#8a7769';
-    g.font = '18px "Microsoft YaHei", "Segoe UI", sans-serif';
-    g.fillText(en ? 'Click the canvas, or use Wand / AI pick.' : '点画面，或用魔棒与 AI 点选', 118, 512);
-    g.fillStyle = '#ffb59b';
-    g.beginPath(); g.arc(480, 600, 30, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#52e3bd';
-    g.beginPath(); g.roundRect(560, 586, 200, 44, 22); g.fill();
+
+    g.fillStyle = '#1a1410'; round(110, 96, 620, 124, 62); g.fill();
+    label('MISTVALE', 420, 160, '700 56px Georgia, "Times New Roman", serif', '#efe4d6');
+
+    g.beginPath(); g.arc(1560, 250, 152, 0, Math.PI * 2); g.fillStyle = '#e4f26d'; g.fill();
+    g.lineWidth = 14; g.strokeStyle = '#1a1410'; g.stroke();
+    label('NEW', 1560, 254, '700 64px Georgia, serif', '#1a1410');
+
+    g.fillStyle = '#ff5a2a'; round(120, 430, 580, 160, 32); g.fill();
+    label(en ? 'START GAME' : '开始游戏', 410, 512, '700 48px "Segoe UI","Microsoft YaHei",sans-serif', '#fff');
+
+    g.fillStyle = '#fffdf8'; round(820, 470, 860, 300, 30); g.fill();
+    g.fillStyle = '#1a1410'; g.font = '700 48px "Segoe UI","Microsoft YaHei",sans-serif';
+    g.fillText(en ? 'DROP IT. SPLIT IT.' : '拖进来，拆开。', 890, 582);
+    g.fillStyle = '#8a7769'; g.font = '400 32px "Segoe UI","Microsoft YaHei",sans-serif';
+    g.fillText(en ? 'Stickers in seconds.' : '几秒变成贴纸。', 890, 650);
+
+    g.beginPath(); g.arc(185, 890, 100, 0, Math.PI * 2); g.fillStyle = '#2d6cdf'; g.fill();
+    label('PP', 185, 894, '700 54px "Segoe UI",sans-serif', '#fff');
+
+    g.fillStyle = '#52e3bd'; round(400, 826, 340, 112, 56); g.fill();
+    label(en ? 'LOCAL' : '本地', 570, 884, '700 38px "Segoe UI","Microsoft YaHei",sans-serif', '#06241c');
+
+    star(960, 1015, 118, 50, 5, '#e4f26d', '#1a1410', 10);
+
+    g.beginPath(); g.arc(1235, 1020, 82, 0, Math.PI * 2); g.fillStyle = '#ffb59b'; g.fill();
+
+    g.strokeStyle = '#1a1410'; g.lineWidth = 26; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath(); g.moveTo(1400, 1068); g.lineTo(1636, 922); g.stroke();
+    g.beginPath(); g.moveTo(1636, 922); g.lineTo(1598, 988); g.moveTo(1636, 922); g.lineTo(1700, 950); g.stroke();
+
     const img = new Image();
     img.onload = () => useImage(img, 'sample.png');
     img.src = cv.toDataURL('image/png');

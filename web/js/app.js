@@ -64,6 +64,13 @@
 
   function bindTop() {
     $('themeBtn').onclick = () => setTheme(A.theme === 'dark' ? 'light' : 'dark');
+    const sponsor = $('sponsor');
+    if (sponsor) {
+      document.addEventListener('click', (e) => {
+        if (sponsor.open && !sponsor.contains(e.target)) sponsor.open = false;
+      });
+      sponsor.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { sponsor.open = false; }));
+    }
     $('userChip').onclick = () => {
       if (session().guest) openLogin();
       else openAccount();

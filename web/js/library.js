@@ -67,6 +67,7 @@
         <div class="libThumb">
           <img src="${urlFor(item)}" alt="${escapeHtml(item.name)}" loading="lazy">
           <span class="libCk">✓</span>
+          <button class="libDel" data-q="del" type="button" title="删除元素" aria-label="删除元素"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="libQuick">
             <button data-q="board" type="button" title="加入画板">▣</button>
             <button data-q="down" type="button" title="下载 PNG">↓</button>
@@ -80,6 +81,10 @@
       });
       card.querySelector('[data-q="board"]').addEventListener('click', (e) => { e.stopPropagation(); toBoard(item); });
       card.querySelector('[data-q="down"]').addEventListener('click', (e) => { e.stopPropagation(); download(item); });
+      card.querySelector('[data-q="del"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeWithUndo([item.id]);
+      });
       grid.appendChild(card);
     });
     if (!L.query.trim()) {
